@@ -9,6 +9,8 @@
 #include "util-inl.h"
 #include "v8-debug.h"
 
+#include<iostream>
+#include <string>
 namespace node {
 
 using v8::Array;
@@ -111,6 +113,11 @@ class ContextifyContext {
   // weren't supported by Node's VM module until 0.12 anyway.  But, this
   // should be fixed properly in V8, and this copy function should be
   // removed once there is a better way.
+
+//  const char* ToCString(const Local<v8::String> value) {
+  //return *value ? *value : "<string conversion failed>";
+//}
+
   void CopyProperties() {
     HandleScope scope(env()->isolate());
 
@@ -120,18 +127,37 @@ class ContextifyContext {
     Local<Object> sandbox_obj = sandbox();
 
     Local<Function> clone_property_method;
-
+   //./deps/v8/src/api.cc:4335
     Local<Array> names = global->GetOwnPropertyNames();
     int length = names->Length();
+
+    if (clone_property_method.IsEmpty()) {
+      Local<String> code = FIXED_ONE_BYTE_STRING(env()->isolate(),
+          "(function cloneProperty(source, key, target) {\n"
+          "  if (key === 'Proxy') return;\n"
+          "  try {\n"
+          "    var desc = Object.getOwnPropertyDescriptor(source, key);\n"
+          "    if (desc.value === source) desc.value = target;\n"
+          "    Object.defineProperty(target, key, desc);\n"
+          "  } catch (e) {\n"
+          "   // Catch sealed properties errors\n"
+          "  }\n"
+          "})");
+    Local<Script> script =
+              Script::Compile(context, code).ToLocalChecked();
+
     for (int i = 0; i < length; i++) {
       Local<String> key = names->Get(i)->ToString(env()->isolate());
+
       Maybe<bool> has = sandbox_obj->HasOwnProperty(context, key);
 
       // Check for pending exceptions
       if (has.IsNothing())
-        return;
+          return;
 
       if (!has.FromJust()) {
+        std::cout << "inside Copy Prop " << has.FromJust() << has.IsNothing();
+
         // Could also do this like so:
         //
         // PropertyAttribute att = global->GetPropertyAttributes(key_v);
@@ -144,21 +170,7 @@ class ContextifyContext {
         // with the ES3-style attribute flags (DontDelete/DontEnum/ReadOnly),
         // which doesn't faithfully capture the full range of configurations
         // that can be done using Object.defineProperty.
-        if (clone_property_method.IsEmpty()) {
-          Local<String> code = FIXED_ONE_BYTE_STRING(env()->isolate(),
-              "(function cloneProperty(source, key, target) {\n"
-              "  if (key === 'Proxy') return;\n"
-              "  try {\n"
-              "    var desc = Object.getOwnPropertyDescriptor(source, key);\n"
-              "    if (desc.value === source) desc.value = target;\n"
-              "    Object.defineProperty(target, key, desc);\n"
-              "  } catch (e) {\n"
-              "   // Catch sealed properties errors\n"
-              "  }\n"
-              "})");
 
-          Local<Script> script =
-              Script::Compile(context, code).ToLocalChecked();
           clone_property_method = Local<Function>::Cast(script->Run());
           CHECK(clone_property_method->IsFunction());
         }
@@ -398,7 +410,10 @@ class ContextifyContext {
     if (!is_declared && args.ShouldThrowOnError())
       return;
 
+    std::cout << "inside GlobalPropertySetterCallback" << std::endl;
+    std::cout << is_declared << std::endl;
     ctx->sandbox()->Set(property, value);
+
   }
 
 

@@ -107,3 +107,6 @@ icu_config.gypi
 # Xcode workspaces and project folders
 *.xcodeproj
 *.xcworkspace
+
+# my tests
+test/mine
