@@ -8,9 +8,11 @@
 #include "util.h"
 #include "util-inl.h"
 #include "v8-debug.h"
+#include "v8.h"
 
+#include "src/property-descriptor.h"
 #include<iostream>
-#include <string>
+
 namespace node {
 
 using v8::Array;
@@ -131,20 +133,6 @@ class ContextifyContext {
     Local<Array> names = global->GetOwnPropertyNames();
     int length = names->Length();
 
-    if (clone_property_method.IsEmpty()) {
-      Local<String> code = FIXED_ONE_BYTE_STRING(env()->isolate(),
-          "(function cloneProperty(source, key, target) {\n"
-          "  if (key === 'Proxy') return;\n"
-          "  try {\n"
-          "    var desc = Object.getOwnPropertyDescriptor(source, key);\n"
-          "    if (desc.value === source) desc.value = target;\n"
-          "    Object.defineProperty(target, key, desc);\n"
-          "  } catch (e) {\n"
-          "   // Catch sealed properties errors\n"
-          "  }\n"
-          "})");
-    Local<Script> script =
-              Script::Compile(context, code).ToLocalChecked();
 
     for (int i = 0; i < length; i++) {
       Local<String> key = names->Get(i)->ToString(env()->isolate());
@@ -157,7 +145,11 @@ class ContextifyContext {
 
       if (!has.FromJust()) {
         std::cout << "inside Copy Prop " << has.FromJust() << has.IsNothing();
-
+        // v8.h l. 2931
+        //Maybe<bool> DefineProperty(
+        //    Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor);
+        PropertyDescriptor desc;
+        PropertyDescriptor::ToPropertyDescriptor(isolate, attributes, &desc)
         // Could also do this like so:
         //
         // PropertyAttribute att = global->GetPropertyAttributes(key_v);
@@ -170,7 +162,21 @@ class ContextifyContext {
         // with the ES3-style attribute flags (DontDelete/DontEnum/ReadOnly),
         // which doesn't faithfully capture the full range of configurations
         // that can be done using Object.defineProperty.
+        if (clone_property_method.IsEmpty()) {
+          Local<String> code = FIXED_ONE_BYTE_STRING(env()->isolate(),
+              "(function cloneProperty(source, key, target) {\n"
+              "  if (key === 'Proxy') return;\n"
+              "  try {\n"
+              "    var desc = Object.getOwnPropertyDescriptor(source, key);\n"
+              "    if (desc.value === source) desc.value = target;\n"
+              "    Object.defineProperty(target, key, desc);\n"
+              "  } catch (e) {\n"
+              "   // Catch sealed properties errors\n"
+              "  }\n"
+              "})");
 
+          Local<Script> script =
+              Script::Compile(context, code).ToLocalChecked();
           clone_property_method = Local<Function>::Cast(script->Run());
           CHECK(clone_property_method->IsFunction());
         }
