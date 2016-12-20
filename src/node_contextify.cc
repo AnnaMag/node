@@ -10,7 +10,7 @@
 #include "v8-debug.h"
 #include "v8.h"
 
-#include "src/property-descriptor.h"
+//#include "src/property-descriptor.h"
 #include<iostream>
 
 namespace node {
@@ -36,6 +36,7 @@ using v8::Object;
 using v8::ObjectTemplate;
 using v8::Persistent;
 using v8::PropertyAttribute;
+using v8::PropertyDescriptor;
 using v8::PropertyCallbackInfo;
 using v8::Script;
 using v8::ScriptCompiler;
@@ -149,7 +150,7 @@ class ContextifyContext {
         //Maybe<bool> DefineProperty(
         //    Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor);
         PropertyDescriptor desc;
-        PropertyDescriptor::ToPropertyDescriptor(isolate, attributes, &desc)
+        PropertyDescriptor::ToPropertyDescriptor(isolate, attributes, &desc);
         // Could also do this like so:
         //
         // PropertyAttribute att = global->GetPropertyAttributes(key_v);
