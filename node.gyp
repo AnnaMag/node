@@ -140,6 +140,8 @@
       ],
 
       'sources': [
+        'src/helpers.cc',
+        'src/helpers.h',
         'src/debug-agent.cc',
         'src/async-wrap.cc',
         'src/env.cc',
