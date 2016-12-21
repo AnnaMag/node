@@ -9,10 +9,9 @@
 #include "util-inl.h"
 #include "v8-debug.h"
 #include "v8.h"
+#include "helpers.h"
 
-//#include "src/property-descriptor.h"
-#include<iostream>
-
+#include <iostream>
 namespace node {
 
 using v8::Array;
@@ -134,6 +133,25 @@ class ContextifyContext {
     Local<Array> names = global->GetOwnPropertyNames();
     int length = names->Length();
 
+    //v8::Isolate* i = v8::Isolate::New();//create an isolate instance
+
+    //if (reinterpret_cast<v8::Object>(names)->IsSmi()) {
+      //    printf("Not a descriptor array\n");
+        //} else {
+
+    Local<Array> 	arr = sandbox_obj->GetPropertyNames();
+    int lengtha = arr->Length();
+
+    std::cout << "properties of the global object"  << std::endl;
+    PrintLocalArray(names);
+
+    std::cout << "properties of the sandbox"  << std::endl;
+    PrintLocalArray(arr);
+
+  //  reinterpret_cast<v8::Object>(sandbox_obj)->Print();
+      //}
+    std::cout << "inside Copy Properties "  << std::endl;
+    std::cout << "properties: "  << std::endl;
 
     for (int i = 0; i < length; i++) {
       Local<String> key = names->Get(i)->ToString(env()->isolate());
@@ -145,12 +163,13 @@ class ContextifyContext {
           return;
 
       if (!has.FromJust()) {
-        std::cout << "inside Copy Prop " << has.FromJust() << has.IsNothing();
+
+        //reinterpret_cast<char *>(key)->Print();
         // v8.h l. 2931
         //Maybe<bool> DefineProperty(
         //    Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor);
         PropertyDescriptor desc;
-        PropertyDescriptor::ToPropertyDescriptor(isolate, attributes, &desc);
+      //  PropertyDescriptor::ToPropertyDescriptor(isolate, attributes, &desc);
         // Could also do this like so:
         //
         // PropertyAttribute att = global->GetPropertyAttributes(key_v);
@@ -418,7 +437,6 @@ class ContextifyContext {
       return;
 
     std::cout << "inside GlobalPropertySetterCallback" << std::endl;
-    std::cout << is_declared << std::endl;
     ctx->sandbox()->Set(property, value);
 
   }
