@@ -1,4 +1,6 @@
 #include "v8.h"
+#include "helpers.h"
+
 #include <iostream>
 
 using v8::Local;
