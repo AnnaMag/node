@@ -145,79 +145,84 @@ class ContextifyContext {
   //  PrintLocalArray(arr);
 
   // v8.h l. 2931
-  //Maybe<bool> DefineProperty(
-  //    Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor);
+  //
   PropertyDescriptor desc;
   //auto attributes = PropertyAttribute::None;
   //static_cast<int>(attributes);
   //PropertyDescriptor desc(v8_num(42));
 
-  // MaybeLocal<Value> GetOwnPropertyDescriptor(Local<Context> context, Local<String> key);
-
-
     for (int i = 0; i < length; i++) {
       Local<String> key = names->Get(i)->ToString(env()->isolate());
       PrintLocalString(key);
-      MaybeLocal<Value> desc = sandbox_obj->GetOwnPropertyDescriptor(context,key);
+
+      // MaybeLocal<Value> GetOwnPropertyDescriptor(Local<Context> context, Local<String> key);
+      MaybeLocal<Value> desc = global->GetOwnPropertyDescriptor(context,key);
       Local<Value> descLoc = desc.ToLocalChecked();
-      // above can be squeezed to:
+      // the above can be squeezed to:
       // Local<Value> desc = sandbox_obj->GetOwnPropertyDescriptor(context,key)
       // .ToLocalChecked();
-      Local<Array> arr = Local<Object>::Cast(descLoc)->GetPropertyNames();
-      PrintLocalArray(arr);
-  //    Local<Object> x = Local<Object>::Cast(descLoc)->Get(context, "value");
-      //Object.defineProperty(obj, key, desc);"
-    //  PropertyAttribute prop = global->GetPropertyAttributes(context, key);
-      Maybe<bool> has = sandbox_obj->HasOwnProperty(context, key);
+      Local<Object> descObj = Local<Object>::Cast(descLoc);
+      //Local<Array> arr = descObj->GetPropertyNames();
+      //PrintLocalArray(arr);
+      // l. 2964
+      //V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
+      //                                            Local<Value> key);
+     Local<Value> descVal = Local<Value>::Cast(descObj->Get(context, key).ToLocalChecked());
 
-      // Check for pending exceptions
-      if (has.IsNothing())
-          return;
+     PropertyAttribute attr = global->GetPropertyAttributes(context, key)
+        .FromJust();
+     sandbox_obj->DefineOwnProperty(context, key, descVal, attr).FromJust();
 
-      if (!has.FromJust()) {
-
-      //  if (desc.has_writable()) {
-      //    std::cout << desc.writable(); // false
+      // Maybe<bool> has = sandbox_obj->HasOwnProperty(context, key);
+      //
+      // // Check for pending exceptions
+      // if (has.IsNothing())
+      //     return;
+      //
+      // if (!has.FromJust()) {
+      //
+      // //  if (desc.has_writable()) {
+      // //    std::cout << desc.writable(); // false
+      // //   }
+      //
+      // //  DefineProperty(Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor)
+      //
+      //   // Could also do this like so:
+      //   //
+      //   // PropertyAttribute att = global->GetPropertyAttributes(key_v);
+      //   // Local<Value> val = global->Get(key_v);
+      //   // sandbox->ForceSet(key_v, val, att);
+      //   //
+      //   // However, this doesn't handle ES6-style properties configured with
+      //   // Object.defineProperty, and that's exactly what we're up against at
+      //   // this point.  ForceSet(key,val,att) only supports value properties
+      //   // with the ES3-style attribute flags (DontDelete/DontEnum/ReadOnly),
+      //   // which doesn't faithfully capture the full range of configurations
+      //   // that can be done using Object.defineProperty.
+      //
+      //   // NTS: take care of sealed properties
+      //   if (clone_property_method.IsEmpty()) {
+      //     Local<String> code = FIXED_ONE_BYTE_STRING(env()->isolate(),
+      //         "(function cloneProperty(source, key, target) {\n"
+      //         "  if (key === 'Proxy') return;\n"
+      //         "  try {\n"
+      //         "    var desc = Object.getOwnPropertyDescriptor(source, key);\n"
+      //         "    if (desc.value === source) desc.value = target;\n"
+      //         "    Object.defineProperty(target, key, desc);\n"
+      //         "  } catch (e) {\n"
+      //         "   // Catch sealed properties errors\n"
+      //         "  }\n"
+      //         "})");
+      //   //preparing a function to run
+      //     Local<Script> script =
+      //         Script::Compile(context, code).ToLocalChecked();
+      //     clone_property_method = Local<Function>::Cast(script->Run());
+      //     CHECK(clone_property_method->IsFunction());
       //   }
 
-      //  DefineProperty(Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor)
-
-        // Could also do this like so:
-        //
-        // PropertyAttribute att = global->GetPropertyAttributes(key_v);
-        // Local<Value> val = global->Get(key_v);
-        // sandbox->ForceSet(key_v, val, att);
-        //
-        // However, this doesn't handle ES6-style properties configured with
-        // Object.defineProperty, and that's exactly what we're up against at
-        // this point.  ForceSet(key,val,att) only supports value properties
-        // with the ES3-style attribute flags (DontDelete/DontEnum/ReadOnly),
-        // which doesn't faithfully capture the full range of configurations
-        // that can be done using Object.defineProperty.
-
-        // NTS: take care of sealed properties
-        if (clone_property_method.IsEmpty()) {
-          Local<String> code = FIXED_ONE_BYTE_STRING(env()->isolate(),
-              "(function cloneProperty(source, key, target) {\n"
-              "  if (key === 'Proxy') return;\n"
-              "  try {\n"
-              "    var desc = Object.getOwnPropertyDescriptor(source, key);\n"
-              "    if (desc.value === source) desc.value = target;\n"
-              "    Object.defineProperty(target, key, desc);\n"
-              "  } catch (e) {\n"
-              "   // Catch sealed properties errors\n"
-              "  }\n"
-              "})");
-        //preparing a function to run
-          Local<Script> script =
-              Script::Compile(context, code).ToLocalChecked();
-          clone_property_method = Local<Function>::Cast(script->Run());
-          CHECK(clone_property_method->IsFunction());
-        }
-
-        Local<Value> args[] = { global, key, sandbox_obj };
-        clone_property_method->Call(global, arraysize(args), args);
-      }
+      //  Local<Value> args[] = { global, key, sandbox_obj };
+      //  clone_property_method->Call(global, arraysize(args), args);
+      //}
     }
   }
 
