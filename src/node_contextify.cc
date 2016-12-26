@@ -26,6 +26,7 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
@@ -116,46 +117,57 @@ class ContextifyContext {
   // should be fixed properly in V8, and this copy function should be
   // removed once there is a better way.
 
-//  const char* ToCString(const Local<v8::String> value) {
-  //return *value ? *value : "<string conversion failed>";
+
 //}
-
   void CopyProperties() {
-    HandleScope scope(env()->isolate());
+    std::cout << "inside Copy Properties "  << std::endl;
 
-    Local<Context> context = PersistentToLocal(env()->isolate(), context_);
-    Local<Object> global =
-        context->Global()->GetPrototype()->ToObject(env()->isolate());
+    Isolate* isolate = (env()->isolate());
+    HandleScope scope(isolate);
+
+    Local<Context> context = PersistentToLocal(isolate, context_);
+    Local<Object> global = context->Global()->GetPrototype()->ToObject(isolate);
     Local<Object> sandbox_obj = sandbox();
 
     Local<Function> clone_property_method;
    //./deps/v8/src/api.cc:4335
-    Local<Array> names = global->GetOwnPropertyNames();
+    Local<Array> names = global->GetPropertyNames();
     int length = names->Length();
+    //Local<Object> obj = v8::Local<v8::Object>::Cast(global);
+    //obj->DefineProperty(env.local(), p, desc2).FromJust())
 
-    //v8::Isolate* i = v8::Isolate::New();//create an isolate instance
 
-    //if (reinterpret_cast<v8::Object>(names)->IsSmi()) {
-      //    printf("Not a descriptor array\n");
-        //} else {
+  //  Local<Array> 	arr = sandbox_obj->GetPropertyNames();
 
-    Local<Array> 	arr = sandbox_obj->GetPropertyNames();
-    int lengtha = arr->Length();
+  //  std::cout << "properties of the global object"  << std::endl;
+     PrintLocalArray(names);
+  //  std::cout << "properties of the sandbox"  << std::endl;
+  //  PrintLocalArray(arr);
 
-    std::cout << "properties of the global object"  << std::endl;
-    PrintLocalArray(names);
+  // v8.h l. 2931
+  //Maybe<bool> DefineProperty(
+  //    Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor);
+  PropertyDescriptor desc;
+  //auto attributes = PropertyAttribute::None;
+  //static_cast<int>(attributes);
+  //PropertyDescriptor desc(v8_num(42));
 
-    std::cout << "properties of the sandbox"  << std::endl;
-    PrintLocalArray(arr);
+  // MaybeLocal<Value> GetOwnPropertyDescriptor(Local<Context> context, Local<String> key);
 
-  //  reinterpret_cast<v8::Object>(sandbox_obj)->Print();
-      //}
-    std::cout << "inside Copy Properties "  << std::endl;
-    std::cout << "properties: "  << std::endl;
 
     for (int i = 0; i < length; i++) {
       Local<String> key = names->Get(i)->ToString(env()->isolate());
-
+      PrintLocalString(key);
+      MaybeLocal<Value> desc = sandbox_obj->GetOwnPropertyDescriptor(context,key);
+      Local<Value> descLoc = desc.ToLocalChecked();
+      // above can be squeezed to:
+      // Local<Value> desc = sandbox_obj->GetOwnPropertyDescriptor(context,key)
+      // .ToLocalChecked();
+      Local<Array> arr = Local<Object>::Cast(descLoc)->GetPropertyNames();
+      PrintLocalArray(arr);
+  //    Local<Object> x = Local<Object>::Cast(descLoc)->Get(context, "value");
+      //Object.defineProperty(obj, key, desc);"
+    //  PropertyAttribute prop = global->GetPropertyAttributes(context, key);
       Maybe<bool> has = sandbox_obj->HasOwnProperty(context, key);
 
       // Check for pending exceptions
@@ -164,12 +176,12 @@ class ContextifyContext {
 
       if (!has.FromJust()) {
 
-        //reinterpret_cast<char *>(key)->Print();
-        // v8.h l. 2931
-        //Maybe<bool> DefineProperty(
-        //    Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor);
-        PropertyDescriptor desc;
-      //  PropertyDescriptor::ToPropertyDescriptor(isolate, attributes, &desc);
+      //  if (desc.has_writable()) {
+      //    std::cout << desc.writable(); // false
+      //   }
+
+      //  DefineProperty(Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor)
+
         // Could also do this like so:
         //
         // PropertyAttribute att = global->GetPropertyAttributes(key_v);
@@ -182,6 +194,8 @@ class ContextifyContext {
         // with the ES3-style attribute flags (DontDelete/DontEnum/ReadOnly),
         // which doesn't faithfully capture the full range of configurations
         // that can be done using Object.defineProperty.
+
+        // NTS: take care of sealed properties
         if (clone_property_method.IsEmpty()) {
           Local<String> code = FIXED_ONE_BYTE_STRING(env()->isolate(),
               "(function cloneProperty(source, key, target) {\n"
@@ -194,12 +208,13 @@ class ContextifyContext {
               "   // Catch sealed properties errors\n"
               "  }\n"
               "})");
-
+        //preparing a function to run
           Local<Script> script =
               Script::Compile(context, code).ToLocalChecked();
           clone_property_method = Local<Function>::Cast(script->Run());
           CHECK(clone_property_method->IsFunction());
         }
+
         Local<Value> args[] = { global, key, sandbox_obj };
         clone_property_method->Call(global, arraysize(args), args);
       }
