@@ -133,23 +133,17 @@ class ContextifyContext {
    //./deps/v8/src/api.cc:4335
     Local<Array> names = global->GetPropertyNames();
     int length = names->Length();
-    //Local<Object> obj = v8::Local<v8::Object>::Cast(global);
-    //obj->DefineProperty(env.local(), p, desc2).FromJust())
-
-
+    
   //  Local<Array> 	arr = sandbox_obj->GetPropertyNames();
 
   //  std::cout << "properties of the global object"  << std::endl;
-     PrintLocalArray(names);
+  //   PrintLocalArray(names);
   //  std::cout << "properties of the sandbox"  << std::endl;
   //  PrintLocalArray(arr);
 
   // v8.h l. 2931
   //
   PropertyDescriptor desc;
-  //auto attributes = PropertyAttribute::None;
-  //static_cast<int>(attributes);
-  //PropertyDescriptor desc(v8_num(42));
 
     for (int i = 0; i < length; i++) {
       Local<String> key = names->Get(i)->ToString(env()->isolate());
@@ -171,6 +165,7 @@ class ContextifyContext {
 
      PropertyAttribute attr = global->GetPropertyAttributes(context, key)
         .FromJust();
+
      sandbox_obj->DefineOwnProperty(context, key, descVal, attr).FromJust();
 
       // Maybe<bool> has = sandbox_obj->HasOwnProperty(context, key);
@@ -223,7 +218,16 @@ class ContextifyContext {
       //  Local<Value> args[] = { global, key, sandbox_obj };
       //  clone_property_method->Call(global, arraysize(args), args);
       //}
+
     }
+    //test sandbox properties, if it got attached
+    Local<Array> arr = sandbox_obj->GetOwnPropertyNames();
+    std::cout << "properties of sandbox"  << std::endl;
+    PrintLocalArray(arr);
+
+    PropertyAttribute attr = global->GetPropertyAttributes(context, 'p0')
+       .FromJust();
+
   }
 
 
