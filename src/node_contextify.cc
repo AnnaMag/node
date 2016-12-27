@@ -129,58 +129,38 @@ class ContextifyContext {
     Local<Object> global = context->Global()->GetPrototype()->ToObject(isolate);
     Local<Object> sandbox_obj = sandbox();
 
-    Local<Function> clone_property_method;
-   //./deps/v8/src/api.cc:4335
-    Local<Array> names = global->GetPropertyNames();
+    Local<Array> names = global->GetOwnPropertyNames(context).ToLocalChecked();
+
     int length = names->Length();
-    
-  //  Local<Array> 	arr = sandbox_obj->GetPropertyNames();
-
-  //  std::cout << "properties of the global object"  << std::endl;
-  //   PrintLocalArray(names);
-  //  std::cout << "properties of the sandbox"  << std::endl;
-  //  PrintLocalArray(arr);
-
-  // v8.h l. 2931
-  //
-  PropertyDescriptor desc;
 
     for (int i = 0; i < length; i++) {
       Local<String> key = names->Get(i)->ToString(env()->isolate());
+      std::cout << i << std::endl;
       PrintLocalString(key);
 
-      // MaybeLocal<Value> GetOwnPropertyDescriptor(Local<Context> context, Local<String> key);
-      MaybeLocal<Value> desc = global->GetOwnPropertyDescriptor(context,key);
-      Local<Value> descLoc = desc.ToLocalChecked();
-      // the above can be squeezed to:
-      // Local<Value> desc = sandbox_obj->GetOwnPropertyDescriptor(context,key)
-      // .ToLocalChecked();
-      Local<Object> descObj = Local<Object>::Cast(descLoc);
-      //Local<Array> arr = descObj->GetPropertyNames();
-      //PrintLocalArray(arr);
-      // l. 2964
-      //V8_WARN_UNUSED_RESULT MaybeLocal<Value> Get(Local<Context> context,
-      //                                            Local<Value> key);
-     Local<Value> descVal = Local<Value>::Cast(descObj->Get(context, key).ToLocalChecked());
+      Maybe<bool> has = sandbox_obj->HasOwnProperty(context, key);
+      if (has.IsNothing())
+          return;
 
-     PropertyAttribute attr = global->GetPropertyAttributes(context, key)
-        .FromJust();
+      if (!has.FromJust()) {
+        Local<Value> descLoc = global->GetOwnPropertyDescriptor(context,key)
+           .ToLocalChecked();
+        //Value to Object
+        Local<Object> descObj = Local<Object>::Cast(descLoc);
+        //Object has the Get method, cast back to Value to match DefinePropertyAPI
+       Local<Value> descVal = Local<Value>::Cast(descObj->Get(context, key)
+          .ToLocalChecked());
 
-     sandbox_obj->DefineOwnProperty(context, key, descVal, attr).FromJust();
+       PropertyAttribute attr = global->GetPropertyAttributes(context, key)
+          .FromJust();
 
-      // Maybe<bool> has = sandbox_obj->HasOwnProperty(context, key);
-      //
-      // // Check for pending exceptions
-      // if (has.IsNothing())
-      //     return;
-      //
-      // if (!has.FromJust()) {
-      //
+       sandbox_obj->DefineOwnProperty(context, key, descVal, attr).FromJust();
+
+
       // //  if (desc.has_writable()) {
       // //    std::cout << desc.writable(); // false
       // //   }
       //
-      // //  DefineProperty(Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor)
       //
       //   // Could also do this like so:
       //   //
@@ -218,16 +198,14 @@ class ContextifyContext {
       //  Local<Value> args[] = { global, key, sandbox_obj };
       //  clone_property_method->Call(global, arraysize(args), args);
       //}
-
+      std::cout << "check " << sandbox_obj->Has(context, key).FromJust()
+       << std::endl;
+     }
     }
-    //test sandbox properties, if it got attached
+    //test sandbox properties, if they got attached
     Local<Array> arr = sandbox_obj->GetOwnPropertyNames();
     std::cout << "properties of sandbox"  << std::endl;
     PrintLocalArray(arr);
-
-    PropertyAttribute attr = global->GetPropertyAttributes(context, 'p0')
-       .FromJust();
-
   }
 
 

@@ -14,7 +14,7 @@ void PrintLocalString(v8::Local<v8::String> key){
     // so we have to clean memory explicitly
     char* buffer = new char[utf8_length];
     key->WriteUtf8(buffer);//, utf8_length, nullptr, v8::String::NO_NULL_TERMINATION);
-    std::cout << buffer  << " ";
+    std::cout << buffer  << std::endl;
     delete[] buffer;
     }
 
