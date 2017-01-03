@@ -119,6 +119,7 @@ class ContextifyContext {
 
 
 //}
+
   void CopyProperties() {
     std::cout << "inside Copy Properties "  << std::endl;
 
@@ -135,8 +136,6 @@ class ContextifyContext {
 
     for (int i = 0; i < length; i++) {
       Local<String> key = names->Get(i)->ToString(env()->isolate());
-      std::cout << i << std::endl;
-      PrintLocalString(key);
 
       Maybe<bool> has = sandbox_obj->HasOwnProperty(context, key);
       if (has.IsNothing())
@@ -145,67 +144,16 @@ class ContextifyContext {
       if (!has.FromJust()) {
         Local<Value> descLoc = global->GetOwnPropertyDescriptor(context,key)
            .ToLocalChecked();
-        //Value to Object
         Local<Object> descObj = Local<Object>::Cast(descLoc);
-        //Object has the Get method, cast back to Value to match DefinePropertyAPI
-       Local<Value> descVal = Local<Value>::Cast(descObj->Get(context, key)
+        Local<Value> descVal = Local<Value>::Cast(descObj->Get(context, key)
           .ToLocalChecked());
 
-       PropertyAttribute attr = global->GetPropertyAttributes(context, key)
+        PropertyAttribute attr = global->GetPropertyAttributes(context, key)
           .FromJust();
 
-       sandbox_obj->DefineOwnProperty(context, key, descVal, attr).FromJust();
-
-
-      // //  if (desc.has_writable()) {
-      // //    std::cout << desc.writable(); // false
-      // //   }
-      //
-      //
-      //   // Could also do this like so:
-      //   //
-      //   // PropertyAttribute att = global->GetPropertyAttributes(key_v);
-      //   // Local<Value> val = global->Get(key_v);
-      //   // sandbox->ForceSet(key_v, val, att);
-      //   //
-      //   // However, this doesn't handle ES6-style properties configured with
-      //   // Object.defineProperty, and that's exactly what we're up against at
-      //   // this point.  ForceSet(key,val,att) only supports value properties
-      //   // with the ES3-style attribute flags (DontDelete/DontEnum/ReadOnly),
-      //   // which doesn't faithfully capture the full range of configurations
-      //   // that can be done using Object.defineProperty.
-      //
-      //   // NTS: take care of sealed properties
-      //   if (clone_property_method.IsEmpty()) {
-      //     Local<String> code = FIXED_ONE_BYTE_STRING(env()->isolate(),
-      //         "(function cloneProperty(source, key, target) {\n"
-      //         "  if (key === 'Proxy') return;\n"
-      //         "  try {\n"
-      //         "    var desc = Object.getOwnPropertyDescriptor(source, key);\n"
-      //         "    if (desc.value === source) desc.value = target;\n"
-      //         "    Object.defineProperty(target, key, desc);\n"
-      //         "  } catch (e) {\n"
-      //         "   // Catch sealed properties errors\n"
-      //         "  }\n"
-      //         "})");
-      //   //preparing a function to run
-      //     Local<Script> script =
-      //         Script::Compile(context, code).ToLocalChecked();
-      //     clone_property_method = Local<Function>::Cast(script->Run());
-      //     CHECK(clone_property_method->IsFunction());
-      //   }
-
-      //  Local<Value> args[] = { global, key, sandbox_obj };
-      //  clone_property_method->Call(global, arraysize(args), args);
-      //}
-      std::cout << "check " << sandbox_obj->Has(context, key).FromJust()
-       << std::endl;
-     }
+        sandbox_obj->DefineOwnProperty(context, key, descVal, attr).FromJust();
+      }
     }
-    //test sandbox properties, if they got attached
-    Local<Array> arr = sandbox_obj->GetOwnPropertyNames();
-    std::cout << "properties of sandbox"  << std::endl;
-    PrintLocalArray(arr);
   }
 
 
