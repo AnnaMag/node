@@ -135,7 +135,11 @@ class ContextifyContext {
     int length = names->Length();
 
     for (int i = 0; i < length; i++) {
-      Local<String> key = names->Get(i)->ToString(env()->isolate());
+      Local<String> key = names->Get(i)->ToString(isolate);
+      std::cout << " "  << std::endl;
+
+      std::cout << "key "  << std::endl;
+      PrintLocalString(key);
 
       Maybe<bool> has = sandbox_obj->HasOwnProperty(context, key);
       if (has.IsNothing())
@@ -145,13 +149,77 @@ class ContextifyContext {
         Local<Value> descLoc = global->GetOwnPropertyDescriptor(context,key)
            .ToLocalChecked();
         Local<Object> descObj = Local<Object>::Cast(descLoc);
-        Local<Value> descVal = Local<Value>::Cast(descObj->Get(context, key)
-          .ToLocalChecked());
+      //  Local<Value> descVal = Local<Value>::Cast(descObj->Get(context, key)
+        //  .ToLocalChecked());
 
-        PropertyAttribute attr = global->GetPropertyAttributes(context, key)
-          .FromJust();
+        Local<String> valueString = StdStringToLocalString("value", isolate);
+        Local<String> enumString = StdStringToLocalString("enumerable", isolate);
+        Local<String> configurableString = StdStringToLocalString("configurable", isolate);
+        Local<String> writableString = StdStringToLocalString("writable", isolate);
 
-        sandbox_obj->DefineOwnProperty(context, key, descVal, attr).FromJust();
+        //accessors
+        Local<String> getString = StdStringToLocalString("get", isolate);
+        Local<String> setString = StdStringToLocalString("set", isolate);
+
+        Local<Value> value = Local<Value>::Cast(descObj->Get(context, valueString)
+        .ToLocalChecked());
+
+        Local<Value> enumerable = Local<Value>::Cast(descObj
+          ->Get(context, enumString).ToLocalChecked());
+        Local<Value> configurable= Local<Value>::Cast(descObj
+          ->Get(context, configurableString).ToLocalChecked());
+        Local<Value> writable= Local<Value>::Cast(descObj
+            ->Get(context, writableString).ToLocalChecked());
+
+        bool configurableBool = configurable->BooleanValue();
+        bool enumerableBool = enumerable->BooleanValue();
+        bool writableBool = writable->BooleanValue();
+
+        //check if it is an accessor property
+        Local<Function> get = Local<Function>::Cast(descObj
+          ->Get(context, getString).ToLocalChecked());
+        Local<Function> set = Local<Function>::Cast(descObj
+            ->Get(context, setString).ToLocalChecked());
+
+        //initialize an empty PropertyDescriptor
+        PropertyDescriptor desc(v8::Undefined(isolate));
+
+        // check for accessors
+        if (!get.IsEmpty()) {
+          desc.get() = get;
+
+          std::cout << "get not empty - accessor prop"  << std::endl;
+
+          if (!set.IsEmpty()) {
+             desc.set() = set;
+             }
+            else{
+              desc.set() = Undefined(isolate);
+          }
+        } //data properties:
+        else{
+          desc.value() = value;
+          std::cout << "data prop- value "  << std::endl;
+          // add writable ...?
+        }
+
+        if (configurableBool) {
+            desc.set_configurable(true);
+         }
+        if (enumerableBool) {
+             desc.set_enumerable(true);
+          }
+        // test descriptor
+        std::cout << "value " << desc.has_value() << std::endl;
+      //  CHECK(desc.value() == v8_num(42));
+        std::cout << "set " << desc.has_set() << std::endl;
+        std::cout << "get " << desc.has_get() << std::endl;
+        std::cout << "enum " << desc.has_enumerable() << std::endl;
+        std::cout << "conf " << desc.has_configurable() << std::endl;
+        std::cout << "writ " << desc.has_writable() << std::endl;
+
+
+        sandbox_obj->DefineProperty(context, key, desc).FromJust();
       }
     }
   }
@@ -176,6 +244,7 @@ class ContextifyContext {
 
 
   Local<Context> CreateV8Context(Environment* env, Local<Object> sandbox_obj) {
+    std::cout << "inside Createv8context "  << std::endl;
     EscapableHandleScope scope(env->isolate());
     Local<FunctionTemplate> function_template =
         FunctionTemplate::New(env->isolate());
@@ -416,6 +485,8 @@ class ContextifyContext {
       PropertyAttribute prop_attr = maybe_prop_attr.FromJust();
       args.GetReturnValue().Set(prop_attr);
     }
+    std::cout << "inside GlobalPropertyQueryCallback" << std::endl;
+
   }
 
 
@@ -433,6 +504,9 @@ class ContextifyContext {
 
     if (success.IsJust())
       args.GetReturnValue().Set(success.FromJust());
+
+    std::cout << "inside GlobalPropertyDeleterCallback" << std::endl;
+
   }
 
 
@@ -446,6 +520,7 @@ class ContextifyContext {
       return;
 
     args.GetReturnValue().Set(ctx->sandbox()->GetPropertyNames());
+  std::cout << "inside GlobalPropertyEnumCallback" << std::endl;
   }
 };
 
