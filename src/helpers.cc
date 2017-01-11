@@ -6,6 +6,7 @@
 using v8::Local;
 using v8::String;
 using v8::Array;
+using v8::Isolate;
 
 void PrintLocalString(v8::Local<v8::String> key){
     uint32_t utf8_length = key->Utf8Length();
@@ -25,5 +26,9 @@ void PrintLocalArray(v8::Local<v8::Array> arr){
       PrintLocalString(key);
     }
     std::cout << std::endl;
+  }
 
-}
+Local<String> StdStringToLocalString(std::string sText, v8::Isolate* isolate){
+  Local<String> sTextLocal = String::NewFromUtf8(isolate, sText.c_str());
+  return sTextLocal;
+  }
