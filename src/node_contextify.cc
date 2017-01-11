@@ -136,10 +136,6 @@ class ContextifyContext {
 
     for (int i = 0; i < length; i++) {
       Local<String> key = names->Get(i)->ToString(isolate);
-      std::cout << " "  << std::endl;
-
-      std::cout << "key "  << std::endl;
-      PrintLocalString(key);
 
       Maybe<bool> has = sandbox_obj->HasOwnProperty(context, key);
       if (has.IsNothing())
@@ -179,12 +175,12 @@ class ContextifyContext {
         bool writableBool = writable->BooleanValue();
 
         //initialize an empty PropertyDescriptor
-        PropertyDescriptor desc(v8::Undefined(isolate));
+        PropertyDescriptor desc(Undefined(isolate));
 
         // check for accessors
         bool isAccessor = false;
 
-        if (descObj->Has(getString)) {
+        if (descObj->Has(context, getString).FromJust()) {
             Local<Function> get = Local<Function>::Cast(descObj
               ->Get(context, getString).ToLocalChecked());
             desc.get() = get;
@@ -194,7 +190,7 @@ class ContextifyContext {
             desc.get() = Undefined(isolate);
             isAccessor = true;
           }
-        if (descObj->Has(setString)) {
+        if (descObj->Has(context, setString).FromJust()) {
             Local<Function> set = Local<Function>::Cast(descObj
               ->Get(context, setString).ToLocalChecked());
             desc.set() = set;
@@ -207,8 +203,9 @@ class ContextifyContext {
 
         if (!isAccessor){
           desc.value() = value;
-          // add writable ...?
-          desc.writable();
+        //  if (descObj->Has(writableBool)){
+        //    ... set writable
+        //  }
         }
 
         if (configurableBool) {
@@ -217,14 +214,6 @@ class ContextifyContext {
         if (enumerableBool) {
             desc.set_enumerable(true);
           }
-        // test descriptor
-        std::cout << "value " << desc.has_value() << std::endl;
-        std::cout << "set " << desc.has_set() << std::endl;
-        std::cout << "get " << desc.has_get() << std::endl;
-        std::cout << "enum " << desc.has_enumerable() << std::endl;
-        std::cout << "conf " << desc.has_configurable() << std::endl;
-        std::cout << "writ " << desc.has_writable() << std::endl;
-
         sandbox_obj->DefineProperty(context, key, desc).FromJust();
       }
     }
