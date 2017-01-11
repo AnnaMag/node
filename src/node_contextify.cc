@@ -149,75 +149,81 @@ class ContextifyContext {
         Local<Value> descLoc = global->GetOwnPropertyDescriptor(context,key)
            .ToLocalChecked();
         Local<Object> descObj = Local<Object>::Cast(descLoc);
-      //  Local<Value> descVal = Local<Value>::Cast(descObj->Get(context, key)
-        //  .ToLocalChecked());
 
-        Local<String> valueString = StdStringToLocalString("value", isolate);
-        Local<String> enumString = StdStringToLocalString("enumerable", isolate);
-        Local<String> configurableString = StdStringToLocalString("configurable", isolate);
-        Local<String> writableString = StdStringToLocalString("writable", isolate);
+        Local<String> valueString =
+            StdStringToLocalString("value", isolate);
+        Local<String> enumString =
+            StdStringToLocalString("enumerable", isolate);
+        Local<String> configurableString =
+            StdStringToLocalString("configurable", isolate);
+        Local<String> writableString =
+            StdStringToLocalString("writable", isolate);
 
         //accessors
         Local<String> getString = StdStringToLocalString("get", isolate);
         Local<String> setString = StdStringToLocalString("set", isolate);
 
-        Local<Value> value = Local<Value>::Cast(descObj->Get(context, valueString)
-        .ToLocalChecked());
+        Local<Value> value = Local<Value>::Cast(descObj
+            ->Get(context, valueString).ToLocalChecked());
 
         Local<Value> enumerable = Local<Value>::Cast(descObj
-          ->Get(context, enumString).ToLocalChecked());
+            ->Get(context, enumString).ToLocalChecked());
         Local<Value> configurable= Local<Value>::Cast(descObj
-          ->Get(context, configurableString).ToLocalChecked());
+            ->Get(context, configurableString).ToLocalChecked());
         Local<Value> writable= Local<Value>::Cast(descObj
             ->Get(context, writableString).ToLocalChecked());
 
+        //cast to Boolean
         bool configurableBool = configurable->BooleanValue();
         bool enumerableBool = enumerable->BooleanValue();
         bool writableBool = writable->BooleanValue();
-
-        //check if it is an accessor property
-        Local<Function> get = Local<Function>::Cast(descObj
-          ->Get(context, getString).ToLocalChecked());
-        Local<Function> set = Local<Function>::Cast(descObj
-            ->Get(context, setString).ToLocalChecked());
 
         //initialize an empty PropertyDescriptor
         PropertyDescriptor desc(v8::Undefined(isolate));
 
         // check for accessors
-        if (!get.IsEmpty()) {
-          desc.get() = get;
+        bool isAccessor = false;
 
-          std::cout << "get not empty - accessor prop"  << std::endl;
-
-          if (!set.IsEmpty()) {
-             desc.set() = set;
-             }
-            else{
-              desc.set() = Undefined(isolate);
+        if (descObj->Has(getString)) {
+            Local<Function> get = Local<Function>::Cast(descObj
+              ->Get(context, getString).ToLocalChecked());
+            desc.get() = get;
+            isAccessor = true;
           }
-        } //data properties:
-        else{
+        else {
+            desc.get() = Undefined(isolate);
+            isAccessor = true;
+          }
+        if (descObj->Has(setString)) {
+            Local<Function> set = Local<Function>::Cast(descObj
+              ->Get(context, setString).ToLocalChecked());
+            desc.set() = set;
+            isAccessor = true;
+            }
+        else {
+            desc.set() = Undefined(isolate);
+            isAccessor = true;
+          }
+
+        if (!isAccessor){
           desc.value() = value;
-          std::cout << "data prop- value "  << std::endl;
           // add writable ...?
+          desc.writable();
         }
 
         if (configurableBool) {
             desc.set_configurable(true);
          }
         if (enumerableBool) {
-             desc.set_enumerable(true);
+            desc.set_enumerable(true);
           }
         // test descriptor
         std::cout << "value " << desc.has_value() << std::endl;
-      //  CHECK(desc.value() == v8_num(42));
         std::cout << "set " << desc.has_set() << std::endl;
         std::cout << "get " << desc.has_get() << std::endl;
         std::cout << "enum " << desc.has_enumerable() << std::endl;
         std::cout << "conf " << desc.has_configurable() << std::endl;
         std::cout << "writ " << desc.has_writable() << std::endl;
-
 
         sandbox_obj->DefineProperty(context, key, desc).FromJust();
       }
