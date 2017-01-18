@@ -1,0 +1,11 @@
+# lldb re-write of user-defined V8 debugging functions
+# https://github.com/v8/v8/blob/master/tools/gdbinit
+
+#allow the file to be read when lldb starts (set to false to ignore it)
+settings set target.load-cwd-lldbinit true
+
+# Print HeapObjects.
+command regex job 's/(.+)/call _v8_internal_Print_Object((void*)(%1))/'
+
+# Print v8::Local handle value.
+command regex jlh 's/(^\*.+)/call _v8_internal_Print_Object(*(v8::internal::Object**)(*%1))/'
