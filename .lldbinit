@@ -1,3 +1,6 @@
+# lldb debugging v8-related functionality in Node.js
+# =========================================================
+
 # lldb re-write of user-defined V8 debugging functions
 # https://github.com/v8/v8/blob/master/tools/gdbinit
 
@@ -8,4 +11,14 @@ settings set target.load-cwd-lldbinit true
 command regex job 's/(.+)/call _v8_internal_Print_Object((void*)(%1))/'
 
 # Print v8::Local handle value.
-command regex jlh 's/(^\*.+)/call _v8_internal_Print_Object(*(v8::internal::Object**)(*%1))/'
+command regex jlh 's/(^\*.+)/call _v8_internal_Print_Object(*(v8::internal::Object**)(%1))/'
+
+
+# Print Code objects containing given PC from an internal code address
+command regex jco 's/(.+)/call _v8_internal_Print_Code((void*)(%1))/'
+
+# Print TypeFeedbackVector
+command regex jfv 's/(.+)/call _v8_internal_Print_TypeFeedbackVector((void*)(%1))/'
+
+# Print DescriptorArray.
+command regex jda 's/(.+)/call _v8_internal_Print_DescriptorArray((void*)(%1))/'
