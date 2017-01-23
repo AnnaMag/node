@@ -181,11 +181,6 @@ class ContextifyContext {
         if (descObj->Has(context, getString).FromJust() ||
             descObj->Has(context, setString).FromJust())
             {
-              Local<Function> get = Local<Function>::Cast(descObj
-                ->Get(context, getString).ToLocalChecked());
-
-              Local<Function> set = Local<Function>::Cast(descObj
-                ->Get(context, setString).ToLocalChecked());
 
               isAccessor = true;
             }
@@ -202,9 +197,18 @@ class ContextifyContext {
               desc.set_enumerable(true);
             }
 
+          sandbox_obj->DefineProperty(context, key, desc).FromJust();
+
+
         } // accessor property
         else {
           PropertyDescriptor desc(Undefined(isolate));
+
+          Local<Function> get = Local<Function>::Cast(descObj
+            ->Get(context, getString).ToLocalChecked());
+
+          Local<Function> set = Local<Function>::Cast(descObj
+            ->Get(context, setString).ToLocalChecked());
 
           desc.get() = get;
           desc.set() = set;
@@ -215,10 +219,11 @@ class ContextifyContext {
           if (enumerableBool) {
               desc.set_enumerable(true);
             }
+
+          sandbox_obj->DefineProperty(context, key, desc).FromJust();
+
         }
 
-
-        sandbox_obj->DefineProperty(context, key, desc).FromJust();
       }
     }
   }
