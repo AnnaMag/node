@@ -174,46 +174,50 @@ class ContextifyContext {
         bool enumerableBool = enumerable->BooleanValue();
         bool writableBool = writable->BooleanValue();
 
-        //initialize an empty PropertyDescriptor
-        PropertyDescriptor desc(Undefined(isolate));
-
         // check for accessors
         bool isAccessor = false;
 
-        if (descObj->Has(context, getString).FromJust()) {
-            Local<Function> get = Local<Function>::Cast(descObj
-              ->Get(context, getString).ToLocalChecked());
-            desc.get() = get;
-            isAccessor = true;
-          }
-        else {
-            desc.get() = Undefined(isolate);
-            isAccessor = true;
-          }
-        if (descObj->Has(context, setString).FromJust()) {
-            Local<Function> set = Local<Function>::Cast(descObj
-              ->Get(context, setString).ToLocalChecked());
-            desc.set() = set;
-            isAccessor = true;
-            }
-        else {
-            desc.set() = Undefined(isolate);
-            isAccessor = true;
-          }
+        // if it is accessor
+        if (descObj->Has(context, getString).FromJust() ||
+            descObj->Has(context, setString).FromJust())
+            {
+              Local<Function> get = Local<Function>::Cast(descObj
+                ->Get(context, getString).ToLocalChecked());
 
+              Local<Function> set = Local<Function>::Cast(descObj
+                ->Get(context, setString).ToLocalChecked());
+
+              isAccessor = true;
+            }
+
+        // value property
         if (!isAccessor){
+          PropertyDescriptor desc(Undefined(isolate), writableBool);
           desc.value() = value;
-        //  if (descObj->Has(writableBool)){
-        //    ... set writable
-        //  }
+
+          if (configurableBool) {
+              desc.set_configurable(true);
+           }
+          if (enumerableBool) {
+              desc.set_enumerable(true);
+            }
+
+        } // accessor property
+        else {
+          PropertyDescriptor desc(Undefined(isolate));
+
+          desc.get() = get;
+          desc.set() = set;
+
+          if (configurableBool) {
+              desc.set_configurable(true);
+           }
+          if (enumerableBool) {
+              desc.set_enumerable(true);
+            }
         }
 
-        if (configurableBool) {
-            desc.set_configurable(true);
-         }
-        if (enumerableBool) {
-            desc.set_enumerable(true);
-          }
+
         sandbox_obj->DefineProperty(context, key, desc).FromJust();
       }
     }
