@@ -23,6 +23,7 @@ using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
 using v8::Integer;
+using v8::Isolate;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
@@ -112,12 +113,14 @@ class ContextifyContext {
   // should be fixed properly in V8, and this copy function should be
   // removed once there is a better way.
   void CopyProperties() {
-    HandleScope scope(env()->isolate());
+    Isolate* isolate = (env()->isolate());
+    HandleScope scope(isolate);
 
-    Local<Context> context = PersistentToLocal(env()->isolate(), context_);
-    Local<Object> global =
-        context->Global()->GetPrototype()->ToObject(env()->isolate());
+    Local<Context> context = PersistentToLocal(isolate, context_);
+    Local<Object> global = context->Global()->GetPrototype()->ToObject(isolate);
     Local<Object> sandbox_obj = sandbox();
+
+
 
     Local<Function> clone_property_method;
 
