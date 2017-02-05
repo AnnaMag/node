@@ -209,9 +209,10 @@ class ContextifyContext {
 
     NamedPropertyHandlerConfiguration config(GlobalPropertyGetterCallback,
                                              GlobalPropertySetterCallback,
-                                             GlobalPropertyQueryCallback,
+                                             GlobalPropertyDescriptorCallback,
                                              GlobalPropertyDeleterCallback,
                                              GlobalPropertyEnumeratorCallback,
+                                             GlobalPropertyDefinerCallback,
                                              CreateDataWrapper(env));
     object_template->SetHandler(config);
 
@@ -380,6 +381,11 @@ class ContextifyContext {
     }
   }
 
+  static void GlobalPropertyDescriptorCallback(
+      Local<Name> property, const PropertyCallbackInfo<Value>& info){
+        //(*GenericNamedPropertyDescriptorCallback)(
+      }
+
 
   static void GlobalPropertySetterCallback(
       Local<Name> property,
@@ -406,7 +412,31 @@ class ContextifyContext {
       ctx->sandbox()->Set(property, value);
     }
   }
+  static void GlobalPropertyDefinerCallback(
+      Local<Name> property,
+      const PropertyDescriptor& desc,
+      const PropertyCallbackInfo<Value>& args) {
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
 
+    // Still initializing
+    if (ctx->context_.IsEmpty())
+      return;
+
+    bool is_declared =
+        ctx->global_proxy()->HasRealNamedProperty(ctx->context(),
+                                                  property).FromJust();
+    bool is_contextual_store = ctx->global_proxy() != args.This();
+
+    bool set_property_will_throw =
+        args.ShouldThrowOnError() &&
+        !is_declared &&
+        is_contextual_store;
+
+  //  if (!set_property_will_throw) {
+    //  ctx->sandbox()->Set(property, value);
+    //}
+  }
 
   static void GlobalPropertyQueryCallback(
       Local<Name> property,
