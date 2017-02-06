@@ -9,6 +9,8 @@
 #include "util-inl.h"
 #include "v8-debug.h"
 
+#include <iostream>
+
 namespace node {
 
 using v8::Array;
@@ -209,10 +211,10 @@ class ContextifyContext {
 
     NamedPropertyHandlerConfiguration config(GlobalPropertyGetterCallback,
                                              GlobalPropertySetterCallback,
-                                             GlobalPropertyDescriptorCallback,
+                                             GenericGlobalPropertyDescriptorCallback,
                                              GlobalPropertyDeleterCallback,
                                              GlobalPropertyEnumeratorCallback,
-                                             GlobalPropertyDefinerCallback,
+                                             GenericNamedPropertyDefinerCallback,
                                              CreateDataWrapper(env));
     object_template->SetHandler(config);
 
@@ -381,9 +383,10 @@ class ContextifyContext {
     }
   }
 
-  static void GlobalPropertyDescriptorCallback(
+  static void GenericGlobalPropertyDescriptorCallback(
       Local<Name> property, const PropertyCallbackInfo<Value>& info){
         //(*GenericNamedPropertyDescriptorCallback)(
+        std::cout << "descriptor..." << std::endl;
       }
 
 
@@ -412,7 +415,12 @@ class ContextifyContext {
       ctx->sandbox()->Set(property, value);
     }
   }
-  static void GlobalPropertyDefinerCallback(
+
+  // typedef void (*GenericNamedPropertyDefinerCallback)(
+  //     Local<Name> property, const PropertyDescriptor& desc,
+  //     const PropertyCallbackInfo<Value>& info);
+
+  static void GenericNamedPropertyDefinerCallback(
       Local<Name> property,
       const PropertyDescriptor& desc,
       const PropertyCallbackInfo<Value>& args) {
@@ -422,6 +430,8 @@ class ContextifyContext {
     // Still initializing
     if (ctx->context_.IsEmpty())
       return;
+
+    reinterpret_cast<v8::internal::Object*>(*property)->Print();
 
     bool is_declared =
         ctx->global_proxy()->HasRealNamedProperty(ctx->context(),
@@ -433,9 +443,11 @@ class ContextifyContext {
         !is_declared &&
         is_contextual_store;
 
+    std::cout << "definer..." << std::endl;
+
   //  if (!set_property_will_throw) {
-    //  ctx->sandbox()->Set(property, value);
-    //}
+    //   ctx->sandbox()->Set(property, value);
+     //}
   }
 
   static void GlobalPropertyQueryCallback(
