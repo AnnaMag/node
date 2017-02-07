@@ -423,31 +423,35 @@ class ContextifyContext {
   static void GenericNamedPropertyDefinerCallback(
       Local<Name> property,
       const PropertyDescriptor& desc,
-      const PropertyCallbackInfo<Value>& args) {
+      const PropertyCallbackInfo<Value>& info) {
     ContextifyContext* ctx;
-    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, info.Data().As<Object>());
 
     // Still initializing
     if (ctx->context_.IsEmpty())
       return;
 
-    reinterpret_cast<v8::internal::Object*>(*property)->Print();
+    Local<Context> context = ctx->context();
+    Local<Object> sandbox = ctx->sandbox();
 
-    bool is_declared =
-        ctx->global_proxy()->HasRealNamedProperty(ctx->context(),
-                                                  property).FromJust();
-    bool is_contextual_store = ctx->global_proxy() != args.This();
+    auto define_property_on_sandbox = [&] (PropertyDescriptor* desc_c) {
+        desc_c->set_configurable(desc.configurable());
+        desc_c->set_enumerable(desc.enumerable());
 
-    bool set_property_will_throw =
-        args.ShouldThrowOnError() &&
-        !is_declared &&
-        is_contextual_store;
+        sandbox->DefineProperty(context, property, *desc_c);
+        };
 
-    std::cout << "definer..." << std::endl;
+    std::cout << "definer..."  << std::endl;
+    bool is_accessor =
+           desc.has_get() || desc.has_set();
 
-  //  if (!set_property_will_throw) {
-    //   ctx->sandbox()->Set(property, value);
-     //}
+    if(is_accessor) {
+        PropertyDescriptor desc_c(desc.get(), desc.set());
+        define_property_on_sandbox(&desc_c);
+      } else {
+        PropertyDescriptor desc_c(desc.value(), desc.writable());
+        define_property_on_sandbox(&desc_c);
+      }
   }
 
   static void GlobalPropertyQueryCallback(
