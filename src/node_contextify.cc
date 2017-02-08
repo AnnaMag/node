@@ -209,13 +209,14 @@ class ContextifyContext {
     Local<ObjectTemplate> object_template =
         function_template->InstanceTemplate();
 
-    NamedPropertyHandlerConfiguration config(GlobalPropertyGetterCallback,
-                                             GlobalPropertySetterCallback,
-                                             GenericGlobalPropertyDescriptorCallback,
-                                             GlobalPropertyDeleterCallback,
-                                             GlobalPropertyEnumeratorCallback,
-                                             GenericNamedPropertyDefinerCallback,
-                                             CreateDataWrapper(env));
+    NamedPropertyHandlerConfiguration
+        config(GlobalPropertyGetterCallback,
+               GlobalPropertySetterCallback,
+               GenericGlobalPropertyDescriptorCallback,
+               GlobalPropertyDeleterCallback,
+               GlobalPropertyEnumeratorCallback,
+               GenericNamedPropertyDefinerCallback,
+               CreateDataWrapper(env));
     object_template->SetHandler(config);
 
     Local<Context> ctx = Context::New(env->isolate(), nullptr, object_template);
@@ -384,8 +385,7 @@ class ContextifyContext {
   }
 
   static void GenericGlobalPropertyDescriptorCallback(
-      Local<Name> property, const PropertyCallbackInfo<Value>& info){
-        //(*GenericNamedPropertyDescriptorCallback)(
+      Local<Name> property, const PropertyCallbackInfo<Value>& info) {
         std::cout << "descriptor..." << std::endl;
       }
 
@@ -416,10 +416,6 @@ class ContextifyContext {
     }
   }
 
-  // typedef void (*GenericNamedPropertyDefinerCallback)(
-  //     Local<Name> property, const PropertyDescriptor& desc,
-  //     const PropertyCallbackInfo<Value>& info);
-
   static void GenericNamedPropertyDefinerCallback(
       Local<Name> property,
       const PropertyDescriptor& desc,
@@ -434,24 +430,20 @@ class ContextifyContext {
     Local<Context> context = ctx->context();
     Local<Object> sandbox = ctx->sandbox();
 
-    auto define_property_on_sandbox = [&] (PropertyDescriptor* desc_c) {
-        desc_c->set_configurable(desc.configurable());
-        desc_c->set_enumerable(desc.enumerable());
+    auto define_property_on_sandbox = [&] (PropertyDescriptor* desc_for_sandbox) {
+            desc_for_sandbox->set_configurable(desc.configurable());
+            desc_for_sandbox->set_enumerable(desc.enumerable());
 
-        sandbox->DefineProperty(context, property, *desc_c);
-        };
+            sandbox->DefineProperty(context, property, *desc_for_sandbox);
+            };
 
-    std::cout << "definer..."  << std::endl;
-    bool is_accessor =
-           desc.has_get() || desc.has_set();
-
-    if(is_accessor) {
-        PropertyDescriptor desc_c(desc.get(), desc.set());
-        define_property_on_sandbox(&desc_c);
-      } else {
-        PropertyDescriptor desc_c(desc.value(), desc.writable());
-        define_property_on_sandbox(&desc_c);
-      }
+    if (desc.has_get() || desc.has_set()) {
+            PropertyDescriptor desc_for_sandbox(desc.get(), desc.set());
+            define_property_on_sandbox(&desc_for_sandbox);
+    } else {
+            PropertyDescriptor desc_for_sandbox(desc.value(), desc.writable());
+            define_property_on_sandbox(&desc_for_sandbox);
+    }
   }
 
   static void GlobalPropertyQueryCallback(
