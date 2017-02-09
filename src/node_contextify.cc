@@ -386,7 +386,30 @@ class ContextifyContext {
 
   static void GenericGlobalPropertyDescriptorCallback(
       Local<Name> property, const PropertyCallbackInfo<Value>& info) {
-        std::cout << "descriptor..." << std::endl;
+    //    std::cout << "descriptor..." << std::endl;
+        ContextifyContext* ctx;
+        ASSIGN_OR_RETURN_UNWRAP(&ctx, info.Data().As<Object>());
+
+        // Still initializing
+        if (ctx->context_.IsEmpty())
+          return;
+
+        Local<Context> context = ctx->context();
+        Local<Object> sandbox = ctx->sandbox();
+
+        Maybe<PropertyAttribute> maybe_prop_attr =
+              ctx->sandbox()->GetRealNamedPropertyAttributes(context, property);
+
+         if (maybe_prop_attr.IsNothing()) {
+           std::cout << "desc attr nothing..." << std::endl;
+        //   maybe_prop_attr =
+        //       ctx->global_proxy()->GetRealNamedPropertyAttributes(context,
+        //                                                           property);
+         }
+         if (maybe_prop_attr.IsJust()) {
+           PropertyAttribute prop_attr = maybe_prop_attr.FromJust();
+           info.GetReturnValue().Set(prop_attr);
+         }
       }
 
 
@@ -422,27 +445,33 @@ class ContextifyContext {
       const PropertyCallbackInfo<Value>& info) {
     ContextifyContext* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, info.Data().As<Object>());
+    Local<Context> context = ctx->context();
 
+    v8::Isolate* isolate = context->GetIsolate();
+    HandleScope scope(isolate);
     // Still initializing
     if (ctx->context_.IsEmpty())
-      return;
+        return;
 
-    Local<Context> context = ctx->context();
     Local<Object> sandbox = ctx->sandbox();
 
-    auto define_property_on_sandbox = [&] (PropertyDescriptor* desc_for_sandbox) {
-            desc_for_sandbox->set_configurable(desc.configurable());
-            desc_for_sandbox->set_enumerable(desc.enumerable());
+    auto define_prop_on_sandbox = [&] (PropertyDescriptor* desc_for_sandbox) {
+        desc_for_sandbox->set_configurable(desc.configurable());
+        desc_for_sandbox->set_enumerable(desc.enumerable());
 
-            sandbox->DefineProperty(context, property, *desc_for_sandbox);
-            };
+        sandbox->DefineProperty(context, property, *desc_for_sandbox);
+    };
 
     if (desc.has_get() || desc.has_set()) {
-            PropertyDescriptor desc_for_sandbox(desc.get(), desc.set());
-            define_property_on_sandbox(&desc_for_sandbox);
-    } else {
-            PropertyDescriptor desc_for_sandbox(desc.value(), desc.writable());
-            define_property_on_sandbox(&desc_for_sandbox);
+        Local<Value> get =
+            desc.has_get() ? desc.get() : v8::Undefined(isolate).As<Value>();
+        Local<Value> set =
+            desc.has_set() ? desc.set() : v8::Undefined(isolate).As<Value>();
+        PropertyDescriptor desc_for_sandbox(get, set);
+        define_prop_on_sandbox(&desc_for_sandbox);
+      } else {
+        PropertyDescriptor desc_for_sandbox(desc.value(), desc.writable());
+        define_prop_on_sandbox(&desc_for_sandbox);
     }
   }
 
