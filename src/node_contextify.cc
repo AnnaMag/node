@@ -212,7 +212,7 @@ class ContextifyContext {
     NamedPropertyHandlerConfiguration
         config(GlobalPropertyGetterCallback,
                GlobalPropertySetterCallback,
-               GenericGlobalPropertyDescriptorCallback,
+               GenericNamedPropertyDescriptorCallback,
                GlobalPropertyDeleterCallback,
                GlobalPropertyEnumeratorCallback,
                GenericNamedPropertyDefinerCallback,
@@ -384,32 +384,40 @@ class ContextifyContext {
     }
   }
 
-  static void GenericGlobalPropertyDescriptorCallback(
+  static void GenericNamedPropertyDescriptorCallback(
       Local<Name> property, const PropertyCallbackInfo<Value>& info) {
-    //    std::cout << "descriptor..." << std::endl;
+        std::cout << "descriptor..." << std::endl;
         ContextifyContext* ctx;
         ASSIGN_OR_RETURN_UNWRAP(&ctx, info.Data().As<Object>());
 
         // Still initializing
         if (ctx->context_.IsEmpty())
           return;
-
         Local<Context> context = ctx->context();
+        v8::Isolate* isolate = context->GetIsolate();
+        HandleScope scope(isolate);
+
         Local<Object> sandbox = ctx->sandbox();
 
-        Maybe<PropertyAttribute> maybe_prop_attr =
-              ctx->sandbox()->GetRealNamedPropertyAttributes(context, property);
+        Local<String> key = property->ToString(isolate);
+        Local<Value> desc =
+            sandbox->GetOwnPropertyDescriptor(context, key)
+            .ToLocalChecked();
+        Local<Object> desc_obj = desc.As<Object>();
+        info.GetReturnValue().Set(desc);
+    //    Maybe<PropertyAttribute> maybe_prop_attr =
+      //        ctx->sandbox()->GetRealNamedPropertyAttributes(context, property);
 
-         if (maybe_prop_attr.IsNothing()) {
-           std::cout << "desc attr nothing..." << std::endl;
-        //   maybe_prop_attr =
-        //       ctx->global_proxy()->GetRealNamedPropertyAttributes(context,
-        //                                                           property);
-         }
-         if (maybe_prop_attr.IsJust()) {
-           PropertyAttribute prop_attr = maybe_prop_attr.FromJust();
-           info.GetReturnValue().Set(prop_attr);
-         }
+      //    if (maybe_prop_attr.IsNothing()) {
+      //      std::cout << "desc attr nothing..." << std::endl;
+      //    maybe_prop_attr =
+      //          ctx->global_proxy()->GetRealNamedPropertyAttributes(context,
+      //                                                             property);
+      //    }
+      //    if (maybe_prop_attr.IsJust()) {
+      //      PropertyAttribute prop_attr = maybe_prop_attr.FromJust();
+      // //     info.GetReturnValue().Set(prop_attr);
+      //    }
       }
 
 
@@ -446,6 +454,7 @@ class ContextifyContext {
     ContextifyContext* ctx;
     ASSIGN_OR_RETURN_UNWRAP(&ctx, info.Data().As<Object>());
     Local<Context> context = ctx->context();
+    std::cout << "definer..." << std::endl;
 
     v8::Isolate* isolate = context->GetIsolate();
     HandleScope scope(isolate);
@@ -456,8 +465,12 @@ class ContextifyContext {
     Local<Object> sandbox = ctx->sandbox();
 
     auto define_prop_on_sandbox = [&] (PropertyDescriptor* desc_for_sandbox) {
-        desc_for_sandbox->set_configurable(desc.configurable());
-        desc_for_sandbox->set_enumerable(desc.enumerable());
+        bool configurable =
+             desc.has_configurable() ? desc.configurable() : false;
+        bool enumerable =
+             desc.has_enumerable() ? desc.enumerable() : true;
+        desc_for_sandbox->set_configurable(configurable);
+        desc_for_sandbox->set_enumerable(enumerable);
 
         sandbox->DefineProperty(context, property, *desc_for_sandbox);
     };
@@ -470,7 +483,11 @@ class ContextifyContext {
         PropertyDescriptor desc_for_sandbox(get, set);
         define_prop_on_sandbox(&desc_for_sandbox);
       } else {
-        PropertyDescriptor desc_for_sandbox(desc.value(), desc.writable());
+        Local<Value> value =
+            desc.has_value() ? desc.value() : v8::Undefined(isolate).As<Value>();
+        bool writable =
+            desc.has_writable() ? desc.writable() : false;
+        PropertyDescriptor desc_for_sandbox(value, writable);
         define_prop_on_sandbox(&desc_for_sandbox);
     }
   }
