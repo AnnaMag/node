@@ -397,29 +397,21 @@ class ContextifyContext {
         v8::Isolate* isolate = context->GetIsolate();
         HandleScope scope(isolate);
 
+        Local<String> key = property->ToString(isolate);
         Local<Object> sandbox = ctx->sandbox();
 
-        Local<String> key = property->ToString(isolate);
-        Local<Value> desc =
-            sandbox->GetOwnPropertyDescriptor(context, key)
-            .ToLocalChecked();
-        Local<Object> desc_obj = desc.As<Object>();
-        info.GetReturnValue().Set(desc);
-    //    Maybe<PropertyAttribute> maybe_prop_attr =
-      //        ctx->sandbox()->GetRealNamedPropertyAttributes(context, property);
+        MaybeLocal<Value> descriptor_intercepted =
+            sandbox->GetOwnPropertyDescriptor(context, key);
 
-      //    if (maybe_prop_attr.IsNothing()) {
-      //      std::cout << "desc attr nothing..." << std::endl;
-      //    maybe_prop_attr =
-      //          ctx->global_proxy()->GetRealNamedPropertyAttributes(context,
-      //                                                             property);
-      //    }
-      //    if (maybe_prop_attr.IsJust()) {
-      //      PropertyAttribute prop_attr = maybe_prop_attr.FromJust();
-      // //     info.GetReturnValue().Set(prop_attr);
-      //    }
+        //check for undefined descriptor_intercepted
+        Local<Value> descriptor;
+        if(descriptor_intercepted.ToLocal(&descriptor)&&
+            !descriptor->IsUndefined()){
+            Local<Value> desc = descriptor_intercepted.ToLocalChecked();
+            info.GetReturnValue().Set(desc);
+        }
+
       }
-
 
   static void GlobalPropertySetterCallback(
       Local<Name> property,
@@ -468,7 +460,7 @@ class ContextifyContext {
         bool configurable =
              desc.has_configurable() ? desc.configurable() : false;
         bool enumerable =
-             desc.has_enumerable() ? desc.enumerable() : true;
+             desc.has_enumerable() ? desc.enumerable() : false;
         desc_for_sandbox->set_configurable(configurable);
         desc_for_sandbox->set_enumerable(enumerable);
 
@@ -723,7 +715,7 @@ class ContextifyScript : public BaseObject {
                       break_on_sigint,
                       args,
                       &try_catch)) {
-        contextify_context->CopyProperties();
+      contextify_context->CopyProperties();
       }
 
       if (try_catch.HasCaught()) {
