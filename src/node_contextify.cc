@@ -150,7 +150,8 @@ class ContextifyContext {
             desc->set_enumerable(desc_vm_context
                 ->Get(context, env()->enumerable_string()).ToLocalChecked()
                 ->BooleanValue(context).FromJust());
-            sandbox_obj->DefineProperty(context, key, *desc);
+
+            CHECK(sandbox_obj->DefineProperty(context, key, *desc).FromJust());
         };
 
         if (is_accessor) {
@@ -424,19 +425,28 @@ class ContextifyContext {
     if (ctx->context_.IsEmpty())
       return;
 
+    auto attributes = PropertyAttribute::None;
     bool is_declared =
-        ctx->global_proxy()->HasRealNamedProperty(ctx->context(),
-                                                  property).FromJust();
+        ctx->global_proxy()->GetRealNamedPropertyAttributes(ctx->context(),
+                                                            property)
+        .To(&attributes);
+    bool read_only =
+        static_cast<int>(attributes) &
+        static_cast<int>(PropertyAttribute::ReadOnly);
+
+    if (is_declared && read_only)
+      return;
+
+    // true for x = 5
+    // false for this.x = 5
+    // false for Object.defineProperty(this, 'foo', ...)
+    // false for vmResult.x = 5 where vmResult = vm.runInContext();
     bool is_contextual_store = ctx->global_proxy() != args.This();
 
-    bool set_property_will_throw =
-        args.ShouldThrowOnError() &&
-        !is_declared &&
-        is_contextual_store;
+    if (!is_declared && args.ShouldThrowOnError() && is_contextual_store)
+      return;
 
-    if (!set_property_will_throw) {
-      ctx->sandbox()->Set(property, value);
-    }
+    ctx->sandbox()->Set(property, value);
   }
 
   static void GenericNamedPropertyDefinerCallback(
@@ -523,8 +533,12 @@ class ContextifyContext {
 
     Maybe<bool> success = ctx->sandbox()->Delete(ctx->context(), property);
 
-    if (success.IsJust())
-      args.GetReturnValue().Set(success.FromJust());
+    if (success.FromMaybe(false))
+      return;
+
+    // Delete failed on the sandbox, intercept and do not delete on
+    // the global object.
+    args.GetReturnValue().Set(false);
   }
 
 

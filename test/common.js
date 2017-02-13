@@ -497,6 +497,12 @@ function fail(msg) {
 }
 exports.fail = fail;
 
+exports.mustNotCall = function(msg) {
+  return function mustNotCall() {
+    fail(msg || 'function should not have been called');
+  };
+};
+
 exports.skip = function(msg) {
   console.log(`1..0 # Skipped: ${msg}`);
 };
@@ -585,3 +591,43 @@ Object.defineProperty(exports, 'hasIntl', {
     return process.binding('config').hasIntl;
   }
 });
+
+// https://github.com/w3c/testharness.js/blob/master/testharness.js
+exports.WPT = {
+  test: (fn, desc) => {
+    try {
+      fn();
+    } catch (err) {
+      if (err instanceof Error)
+        err.message = `In ${desc}:\n  ${err.message}`;
+      throw err;
+    }
+  },
+  assert_equals: assert.strictEqual,
+  assert_true: (value, message) => assert.strictEqual(value, true, message),
+  assert_false: (value, message) => assert.strictEqual(value, false, message),
+  assert_throws: (code, func, desc) => {
+    assert.throws(func, (err) => {
+      return typeof err === 'object' && 'name' in err && err.name === code.name;
+    }, desc);
+  },
+  assert_array_equals: assert.deepStrictEqual,
+  assert_unreached(desc) {
+    assert.fail(undefined, undefined, `Reached unreachable code: ${desc}`);
+  }
+};
+
+// Useful for testing expected internal/error objects
+exports.expectsError = function expectsError(code, type, message) {
+  return function(error) {
+    assert.strictEqual(error.code, code);
+    if (type !== undefined)
+      assert(error instanceof type, 'error is not the expected type');
+    if (message !== undefined) {
+      if (!util.isRegExp(message))
+        message = new RegExp(String(message));
+      assert(message.test(error.message), 'error.message does not match');
+    }
+    return true;
+  };
+};
