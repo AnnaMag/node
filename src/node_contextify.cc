@@ -151,7 +151,7 @@ class ContextifyContext {
                 ->Get(context, env()->enumerable_string()).ToLocalChecked()
                 ->BooleanValue(context).FromJust());
 
-            CHECK(sandbox_obj->DefineProperty(context, key, *desc).FromJust());
+            sandbox_obj->DefineProperty(context, key, *desc).FromJust();
         };
 
         if (is_accessor) {
@@ -210,13 +210,21 @@ class ContextifyContext {
     Local<ObjectTemplate> object_template =
         function_template->InstanceTemplate();
 
+    // NamedPropertyHandlerConfiguration
+    //     config(GlobalPropertyGetterCallback,
+    //            GlobalPropertySetterCallback,
+    //            GenericNamedPropertyDescriptorCallback,
+    //            GlobalPropertyDeleterCallback,
+    //            GlobalPropertyEnumeratorCallback,
+    //            GenericNamedPropertyDefinerCallback,
+    //            CreateDataWrapper(env));
     NamedPropertyHandlerConfiguration
-        config(GlobalPropertyGetterCallback,
-               GlobalPropertySetterCallback,
+        config(nullptr,
+               nullptr,
                GenericNamedPropertyDescriptorCallback,
-               GlobalPropertyDeleterCallback,
-               GlobalPropertyEnumeratorCallback,
-               GenericNamedPropertyDefinerCallback,
+               nullptr,
+               nullptr,
+               nullptr,
                CreateDataWrapper(env));
     object_template->SetHandler(config);
 
@@ -401,16 +409,27 @@ class ContextifyContext {
         Local<String> key = property->ToString(isolate);
         Local<Object> sandbox = ctx->sandbox();
 
-        MaybeLocal<Value> descriptor_intercepted =
-            sandbox->GetOwnPropertyDescriptor(context, key);
+        Local<Object> global = context->Global()->GetPrototype()->ToObject(isolate);
+        Local<String> code = FIXED_ONE_BYTE_STRING(isolate,
+              "var desc = {value: 42};\n"
+              "desc;");
 
-        //check for undefined descriptor_intercepted
-        Local<Value> descriptor;
-        if(descriptor_intercepted.ToLocal(&descriptor)&&
-            !descriptor->IsUndefined()){
-            Local<Value> desc = descriptor_intercepted.ToLocalChecked();
-            info.GetReturnValue().Set(desc);
-        }
+        MaybeLocal<Script> script =Script::Compile(context, code);
+        Local<Value> args[] = { global, key, sandbox };
+        Local<Value> desc = script.ToLocalChecked()->Run();
+      //  Local<Object> desc = d.As<Object>();
+
+        info.GetReturnValue().Set(desc);
+        // MaybeLocal<Value> descriptor_intercepted =
+        //     sandbox->GetOwnPropertyDescriptor(context, key);
+        //
+        // //check for undefined descriptor_intercepted
+        // Local<Value> descriptor;
+        // if(descriptor_intercepted.ToLocal(&descriptor)&&
+        //     !descriptor->IsUndefined()){
+        //     Local<Value> desc = descriptor_intercepted.ToLocalChecked();
+        //     info.GetReturnValue().Set(desc);
+        // }
 
       }
 
