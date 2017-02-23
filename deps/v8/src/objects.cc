@@ -7330,6 +7330,9 @@ namespace {
 
 Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
                                                  PropertyDescriptor* desc) {
+  if (it->state() == LookupIterator::ACCESS_CHECK) {
+     it->Next();
+  }
   if (it->state() == LookupIterator::INTERCEPTOR) {
     Isolate* isolate = it->isolate();
     Handle<InterceptorInfo> interceptor = it->GetInterceptor();
