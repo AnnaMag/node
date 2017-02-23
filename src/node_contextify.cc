@@ -8,6 +8,9 @@
 #include "util.h"
 #include "util-inl.h"
 #include "v8-debug.h"
+#include <iostream>
+
+#include <iostream>
 
 namespace node {
 
@@ -207,12 +210,14 @@ class ContextifyContext {
     Local<ObjectTemplate> object_template =
         function_template->InstanceTemplate();
 
-    NamedPropertyHandlerConfiguration config(GlobalPropertyGetterCallback,
-                                             GlobalPropertySetterCallback,
-                                             GlobalPropertyQueryCallback,
-                                             GlobalPropertyDeleterCallback,
-                                             GlobalPropertyEnumeratorCallback,
-                                             CreateDataWrapper(env));
+    NamedPropertyHandlerConfiguration
+        config(GlobalPropertyGetterCallback,
+               GlobalPropertySetterCallback,
+               GenericNamedPropertyDescriptorCallback,
+               GlobalPropertyDeleterCallback,
+               GlobalPropertyEnumeratorCallback,
+               GenericNamedPropertyDefinerCallback,
+               CreateDataWrapper(env));
     object_template->SetHandler(config);
 
     Local<Context> ctx = Context::New(env->isolate(), nullptr, object_template);
@@ -361,6 +366,7 @@ class ContextifyContext {
     // Still initializing
     if (ctx->context_.IsEmpty())
       return;
+      std::cout << "getter..." << std::endl;
 
     Local<Context> context = ctx->context();
     Local<Object> sandbox = ctx->sandbox();
@@ -380,6 +386,36 @@ class ContextifyContext {
     }
   }
 
+  static void GenericNamedPropertyDescriptorCallback(
+      Local<Name> property, const PropertyCallbackInfo<Value>& info) {
+        std::cout << "descriptor..." << std::endl;
+        ContextifyContext* ctx;
+        ASSIGN_OR_RETURN_UNWRAP(&ctx, info.Data().As<Object>());
+
+        // Still initializing
+        if (ctx->context_.IsEmpty())
+          return;
+        Local<Context> context = ctx->context();
+        v8::Isolate* isolate = context->GetIsolate();
+        HandleScope scope(isolate);
+
+        Local<String> key = property->ToString(isolate);
+        Local<Object> sandbox = ctx->sandbox();
+
+        MaybeLocal<Value> maybe_descriptor_intercepted =
+            sandbox->GetOwnPropertyDescriptor(context, key);
+
+        Local<Value> descriptor;
+        if (!maybe_descriptor_intercepted.ToLocal(&descriptor)) {
+        MaybeLocal<Value> maybe_descriptor_intercepted =
+          ctx->global_proxy()->GetOwnPropertyDescriptor(context, key);
+        }
+
+        if (!descriptor->IsUndefined()) {
+            Local<Value> desc = maybe_descriptor_intercepted.ToLocalChecked();
+            info.GetReturnValue().Set(desc);
+        }
+      }
 
   static void GlobalPropertySetterCallback(
       Local<Name> property,
@@ -391,6 +427,7 @@ class ContextifyContext {
     // Still initializing
     if (ctx->context_.IsEmpty())
       return;
+      std::cout << "setter..." << std::endl;
 
     bool is_declared =
         ctx->global_proxy()->HasRealNamedProperty(ctx->context(),
@@ -407,6 +444,52 @@ class ContextifyContext {
     }
   }
 
+  static void GenericNamedPropertyDefinerCallback(
+      Local<Name> property,
+      const PropertyDescriptor& desc,
+      const PropertyCallbackInfo<Value>& info) {
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, info.Data().As<Object>());
+    Local<Context> context = ctx->context();
+    std::cout << "definer..." << std::endl;
+
+    v8::Isolate* isolate = context->GetIsolate();
+    HandleScope scope(isolate);
+    // Still initializing
+    if (ctx->context_.IsEmpty())
+        return;
+
+    Local<Object> sandbox = ctx->sandbox();
+
+    auto define_prop_on_sandbox = [&] (PropertyDescriptor* desc_for_sandbox) {
+        if (desc.has_enumerable()) {
+            desc_for_sandbox->set_enumerable(desc.enumerable());
+          }
+        if (desc.has_configurable()) {
+            desc_for_sandbox->set_configurable(desc.configurable());
+        }
+        sandbox->DefineProperty(context, property, *desc_for_sandbox);
+    };
+
+    if (desc.has_get() || desc.has_set()) {
+        Local<Value> get =
+            desc.has_get() ? desc.get() : v8::Undefined(isolate).As<Value>();
+        Local<Value> set =
+            desc.has_set() ? desc.set() : v8::Undefined(isolate).As<Value>();
+        PropertyDescriptor desc_for_sandbox(get, set);
+        define_prop_on_sandbox(&desc_for_sandbox);
+      } else {
+      Local<Value> value =
+            desc.has_value() ? desc.value() : v8::Undefined(isolate).As<Value>();
+      if (desc.has_writable()) {
+            PropertyDescriptor desc_for_sandbox(value, desc.writable());
+            define_prop_on_sandbox(&desc_for_sandbox);
+      } else {
+        PropertyDescriptor desc_for_sandbox(value);
+        define_prop_on_sandbox(&desc_for_sandbox);
+      }
+    }
+  }
 
   static void GlobalPropertyQueryCallback(
       Local<Name> property,
@@ -417,6 +500,7 @@ class ContextifyContext {
     // Still initializing
     if (ctx->context_.IsEmpty())
       return;
+      std::cout << "query..." << std::endl;
 
     Local<Context> context = ctx->context();
     Maybe<PropertyAttribute> maybe_prop_attr =
@@ -639,7 +723,8 @@ class ContextifyScript : public BaseObject {
                       break_on_sigint,
                       args,
                       &try_catch)) {
-        contextify_context->CopyProperties();
+
+      //  contextify_context->CopyProperties();
       }
 
       if (try_catch.HasCaught()) {
