@@ -5,13 +5,13 @@ require('../common');
 const vm = require('vm');
 const assert = require('assert');
 
-const context = vm.createContext({});
-
 const code = `
    Object.defineProperty(this, 'foo', {value: 5});
-   Object.getOwnPropertyDescriptor(this, 'foo');
+   var desc = Object.getOwnPropertyDescriptor(this, 'foo');
+   desc.writable;
 `;
 
-const desc = vm.runInContext(code, context);
+const sandbox = {console}
+const ctx = vm.createContext(sandbox);
 
-assert.strictEqual(desc.writable, false);
+assert.strictEqual(vm.runInContext(code, ctx), false);
