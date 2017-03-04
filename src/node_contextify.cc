@@ -351,12 +351,16 @@ class ContextifyContext {
             sandbox->GetOwnPropertyDescriptor(context, key);
 
         Local<Value> descriptor;
-        if (!descriptor->IsUndefined()) {
-            if (!maybe_descriptor_intercepted.ToLocal(&descriptor)) {
-            maybe_descriptor_intercepted = ctx->global_proxy()->GetOwnPropertyDescriptor(context, key);
-            }
-            Local<Value> desc = maybe_descriptor_intercepted.ToLocalChecked();
+      //  if (!descriptor->IsUndefined()) {
+        if (!maybe_descriptor_intercepted.ToLocal(&descriptor)) {
+        maybe_descriptor_intercepted = ctx->global_proxy()->GetOwnPropertyDescriptor(context, key);
+        }
+        Local<Value> desc = maybe_descriptor_intercepted.ToLocalChecked();
+        if (!desc->IsUndefined()) {
             info.GetReturnValue().Set(desc);
+        } else {
+          // false ir true or skip the step?
+        //  info.GetReturnValue().Set(false);
         }
       }
 
