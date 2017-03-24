@@ -377,6 +377,11 @@ class ContextifyContext {
       if (ctx->context_.IsEmpty())
           return;
 
+      auto attributes = PropertyAttribute::None;
+      bool is_declared =
+              ctx->global_proxy()->GetRealNamedPropertyAttributes(ctx->context(),
+                                        property).To(&attributes);
+
       Local<Object> sandbox = ctx->sandbox();
 
       auto define_prop_on_sandbox = [&] (PropertyDescriptor* desc_for_sandbox) {
@@ -404,14 +409,12 @@ class ContextifyContext {
           PropertyDescriptor desc_for_sandbox(value, desc.writable());
           define_prop_on_sandbox(&desc_for_sandbox);
       } else {
-          PropertyDescriptor desc_for_sandbox(value);
+          PropertyDescriptor desc_for_sandbox(value, false);
           define_prop_on_sandbox(&desc_for_sandbox);
         }
       }
       info.GetReturnValue().Set(true);
     }
-
-
 
 
   static void GlobalPropertyDeleterCallback(
