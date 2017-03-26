@@ -297,6 +297,11 @@ test-ci-js: | clear-stalled
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES)
+	# Clean up any leftover processes
+	PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
+	if [ "$${PS_OUT}" ]; then \
+		echo $${PS_OUT} | $(XARGS) kill; exit 1; \
+	fi
 
 test-ci: LOGLEVEL := info
 test-ci: | clear-stalled build-addons
@@ -304,6 +309,11 @@ test-ci: | clear-stalled build-addons
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES) $(CI_JS_SUITES)
+	# Clean up any leftover processes
+	PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
+	if [ "$${PS_OUT}" ]; then \
+		echo $${PS_OUT} | $(XARGS) kill; exit 1; \
+	fi
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
@@ -347,6 +357,11 @@ test-npm-publish: $(NODE_EXE)
 
 test-addons: test-build
 	$(PYTHON) tools/test.py --mode=release addons
+
+test-addons-clean:
+	$(RM) -rf test/addons/??_*/
+	$(RM) -rf test/addons/*/build
+	$(RM) test/addons/.buildstamp test/addons/.docbuildstamp
 
 test-timers:
 	$(MAKE) --directory=tools faketime
@@ -847,10 +862,11 @@ endif
 
 .PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean \
 	check uninstall install install-includes install-bin all staticlib \
-	dynamiclib test test-all test-addons build-addons website-upload pkg \
-	blog blogclean tar binary release-only bench-http-simple bench-idle \
-	bench-all bench bench-misc bench-array bench-buffer bench-net \
-	bench-http bench-fs bench-tls cctest run-ci test-v8 test-v8-intl \
-	test-v8-benchmarks test-v8-all v8 lint-ci bench-ci jslint-ci doc-only \
-	$(TARBALL)-headers test-ci test-ci-native test-ci-js build-ci clear-stalled \
-	coverage-clean coverage-build coverage-test coverage list-gtests
+	dynamiclib test test-all test-addons test-addons-clean build-addons \
+	website-upload pkg blog blogclean tar binary release-only \
+	bench-http-simple bench-idle bench-all bench bench-misc bench-array \
+	bench-buffer bench-net bench-http bench-fs bench-tls cctest run-ci test-v8 \
+	test-v8-intl test-v8-benchmarks test-v8-all v8 lint-ci bench-ci jslint-ci \
+	doc-only $(TARBALL)-headers test-ci test-ci-native test-ci-js build-ci \
+	clear-stalled coverage-clean coverage-build coverage-test coverage \
+	list-gtests

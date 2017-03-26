@@ -461,6 +461,10 @@ connection is open.
 ### new tls.TLSSocket(socket[, options])
 <!-- YAML
 added: v0.11.4
+changes:
+  - version: v5.0.0
+    pr-url: https://github.com/nodejs/node/pull/2564
+    description: ALPN options are supported now.
 -->
 
 * `socket` {net.Socket} An instance of [`net.Socket`][]
@@ -708,7 +712,10 @@ added: v0.11.8
 -->
 
 * `options` {Object}
-  * `rejectUnauthorized` {boolean}
+  * `rejectUnauthorized` {boolean} If not `false`, the server certificate is verified
+    against the list of supplied CAs. An `'error'` event is emitted if
+    verification fails; `err.code` contains the OpenSSL error code. Defaults to
+    `true`.
   * `requestCert`
 * `callback` {Function} A function that will be called when the renegotiation
   request has been completed.
@@ -744,6 +751,13 @@ decrease overall server throughput.
 ## tls.connect(options[, callback])
 <!-- YAML
 added: v0.11.3
+changes:
+  - version: v5.3.0, v4.7.0
+    pr-url: https://github.com/nodejs/node/pull/4246
+    description: The `secureContext` option is supported now.
+  - version: v5.0.0
+    pr-url: https://github.com/nodejs/node/pull/2564
+    description: ALPN options are supported now.
 -->
 
 * `options` {Object}
@@ -758,7 +772,7 @@ added: v0.11.3
     connection/disconnection/destruction of `socket` is the user's
     responsibility, calling `tls.connect()` will not cause `net.connect()` to be
     called.
-  * `rejectUnauthorized` {boolean} If `true`, the server certificate is verified
+  * `rejectUnauthorized` {boolean} If not `false`, the server certificate is verified
     against the list of supplied CAs. An `'error'` event is emitted if
     verification fails; `err.code` contains the OpenSSL error code. Defaults to
     `true`.
@@ -888,6 +902,16 @@ or host argument.
 ## tls.createSecureContext(options)
 <!-- YAML
 added: v0.11.13
+changes:
+  - version: v7.3.0
+    pr-url: https://github.com/nodejs/node/pull/10294
+    description: If the `key` option is an array, individual entries do not
+                 need a `passphrase` property anymore. Array entries can also
+                 just be `string`s or `Buffer`s now.
+  - version: v5.2.0
+    pr-url: https://github.com/nodejs/node/pull/4099
+    description: The `ca` option can now be a single string containing multiple
+                 CA certificates.
 -->
 
 * `options` {Object}
@@ -977,6 +1001,10 @@ publicly trusted list of CAs as given in
 ## tls.createServer([options][, secureConnectionListener])
 <!-- YAML
 added: v0.3.2
+changes:
+  - version: v5.0.0
+    pr-url: https://github.com/nodejs/node/pull/2564
+    description: ALPN options are supported now.
 -->
 
 * `options` {Object}
@@ -987,9 +1015,9 @@ added: v0.3.2
   * `requestCert` {boolean} If `true` the server will request a certificate from
     clients that connect and attempt to verify that certificate. Defaults to
     `false`.
-  * `rejectUnauthorized` {boolean} If `true` the server will reject any
+  * `rejectUnauthorized` {boolean} If not `false` the server will reject any
     connection which is not authorized with the list of supplied CAs. This
-    option only has an effect if `requestCert` is `true`. Defaults to `false`.
+    option only has an effect if `requestCert` is `true`. Defaults to `true`.
   * `NPNProtocols` {string[]|Buffer} An array of strings or a `Buffer` naming
     possible NPN protocols. (Protocols should be ordered by their priority.)
   * `ALPNProtocols` {string[]|Buffer} An array of strings or a `Buffer` naming
@@ -1151,6 +1179,10 @@ certificate used is properly authorized.
 <!-- YAML
 added: v0.3.2
 deprecated: v0.11.3
+changes:
+  - version: v5.0.0
+    pr-url: https://github.com/nodejs/node/pull/2564
+    description: ALPN options are supported now.
 -->
 
 > Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
@@ -1161,9 +1193,8 @@ deprecated: v0.11.3
   opened as a server.
 * `requestCert` {boolean} `true` to specify whether a server should request a
   certificate from a connecting client. Only applies when `isServer` is `true`.
-* `rejectUnauthorized` {boolean} `true` to specify whether a server should
-  automatically reject clients with invalid certificates. Only applies when
-  `isServer` is `true`.
+* `rejectUnauthorized` {boolean} If not `false` a server automatically reject clients
+   with invalid certificates. Only applies when `isServer` is `true`.
 * `options`
   * `secureContext`: An optional TLS context object from
      [`tls.createSecureContext()`][]

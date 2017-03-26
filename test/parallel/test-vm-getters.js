@@ -23,6 +23,6 @@ const result = vm.runInContext(code, context);
 // Ref: https://github.com/nodejs/node/issues/11803
 
 assert.deepStrictEqual(Object.keys(result), Object.keys(descriptor));
-for (let prop of Object.keys(result)) {
-    assert.strictEqual(result[prop], descriptor[prop]);
- }
+for (const prop of Object.keys(result)) {
+  assert.strictEqual(result[prop], descriptor[prop]);
+}

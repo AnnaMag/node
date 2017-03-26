@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 'use strict';
 require('../common');
 const assert = require('assert');
@@ -62,7 +83,6 @@ assert.doesNotThrow(makeBlock(a.notStrictEqual, 2, '2'),
                     'notStrictEqual(2, \'2\')');
 
 // deepEqual joy!
-// 7.2
 assert.doesNotThrow(makeBlock(a.deepEqual, new Date(2000, 3, 14),
                               new Date(2000, 3, 14)),
                     'deepEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))');
@@ -84,7 +104,6 @@ assert.doesNotThrow(makeBlock(
                     'notDeepEqual(new Date(), new Date(2000, 3, 14))'
 );
 
-// 7.3
 assert.doesNotThrow(makeBlock(a.deepEqual, /a/, /a/));
 assert.doesNotThrow(makeBlock(a.deepEqual, /a/g, /a/g));
 assert.doesNotThrow(makeBlock(a.deepEqual, /a/i, /a/i));
@@ -104,20 +123,16 @@ assert.throws(makeBlock(a.deepEqual, /a/igm, /a/im),
 {
   const re1 = /a/g;
   re1.lastIndex = 3;
-
-  assert.throws(makeBlock(a.deepEqual, re1, /a/g),
-                /^AssertionError: \/a\/g deepEqual \/a\/g$/);
+  assert.doesNotThrow(makeBlock(a.deepEqual, re1, /a/g),
+                      /^AssertionError: \/a\/g deepEqual \/a\/g$/);
 }
 
-
-// 7.4
 assert.doesNotThrow(makeBlock(a.deepEqual, 4, '4'), 'deepEqual(4, \'4\')');
 assert.doesNotThrow(makeBlock(a.deepEqual, true, 1), 'deepEqual(true, 1)');
 assert.throws(makeBlock(a.deepEqual, 4, '5'),
               a.AssertionError,
               'deepEqual( 4, \'5\')');
 
-// 7.5
 // having the same number of owned properties && the same set of keys
 assert.doesNotThrow(makeBlock(a.deepEqual, {a: 4}, {a: 4}));
 assert.doesNotThrow(makeBlock(a.deepEqual, {a: 4, b: '2'}, {a: 4, b: '2'}));
@@ -210,7 +225,6 @@ assert.doesNotThrow(
   'notDeepStrictEqual(new Date(), new Date(2000, 3, 14))'
 );
 
-// 7.3 - strict
 assert.doesNotThrow(makeBlock(a.deepStrictEqual, /a/, /a/));
 assert.doesNotThrow(makeBlock(a.deepStrictEqual, /a/g, /a/g));
 assert.doesNotThrow(makeBlock(a.deepStrictEqual, /a/i, /a/i));
@@ -240,10 +254,9 @@ assert.throws(
 {
   const re1 = /a/;
   re1.lastIndex = 3;
-  assert.throws(makeBlock(a.deepStrictEqual, re1, /a/));
+  assert.doesNotThrow(makeBlock(a.deepStrictEqual, re1, /a/));
 }
 
-// 7.4 - strict
 assert.throws(makeBlock(a.deepStrictEqual, 4, '4'),
               a.AssertionError,
               'deepStrictEqual(4, \'4\')');
@@ -256,7 +269,6 @@ assert.throws(makeBlock(a.deepStrictEqual, 4, '5'),
               a.AssertionError,
               'deepStrictEqual(4, \'5\')');
 
-// 7.5 - strict
 // having the same number of owned properties && the same set of keys
 assert.doesNotThrow(makeBlock(a.deepStrictEqual, {a: 4}, {a: 4}));
 assert.doesNotThrow(makeBlock(a.deepStrictEqual,

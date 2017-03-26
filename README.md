@@ -1,6 +1,6 @@
 # Node.js
 
-[![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/nodejs/node?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/29/badge)](https://bestpractices.coreinfrastructure.org/projects/29)
+[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/nodejs/node?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/29/badge)](https://bestpractices.coreinfrastructure.org/projects/29)
 
 Node.js is a JavaScript runtime built on Chrome's V8 JavaScript engine. Node.js
 uses an event-driven, non-blocking I/O model that makes it lightweight and
@@ -164,6 +164,8 @@ more information about the governance of the Node.js project, see
 **Colin Ihrig** &lt;cjihrig@gmail.com&gt;
 * [evanlucas](https://github.com/evanlucas) -
 **Evan Lucas** &lt;evanlucas@me.com&gt; (he/him)
+* [fhinkel](https://github.com/fhinkel) -
+**Franziska Hinkelmann** &lt;franziska.hinkelmann@gmail.com&gt;
 * [fishrock123](https://github.com/fishrock123) -
 **Jeremiah Senkpiel** &lt;fishrock123@rocketmail.com&gt;
 * [indutny](https://github.com/indutny) -
@@ -183,7 +185,7 @@ more information about the governance of the Node.js project, see
 * [rvagg](https://github.com/rvagg) -
 **Rod Vagg** &lt;rod@vagg.org&gt;
 * [shigeki](https://github.com/shigeki) -
-**Shigeki Ohtsu** &lt;ohtsu@iij.ad.jp&gt; (he/him)
+**Shigeki Ohtsu** &lt;ohtsu@ohtsu.org&gt; (he/him)
 * [targos](https://github.com/targos) -
 **Michaël Zasso** &lt;targos@protonmail.com&gt; (he/him)
 * [thefourtheye](https://github.com/thefourtheye) -
@@ -229,8 +231,6 @@ more information about the governance of the Node.js project, see
 **Alexander Makarenko** &lt;estliberitas@gmail.com&gt;
 * [eugeneo](https://github.com/eugeneo) -
 **Eugene Ostroukhov** &lt;eostroukhov@google.com&gt;
-* [fhinkel](https://github.com/fhinkel) -
-**Franziska Hinkelmann** &lt;franziska.hinkelmann@gmail.com&gt;
 * [firedfox](https://github.com/firedfox) -
 **Daniel Wang** &lt;wangyang0123@gmail.com&gt;
 * [geek](https://github.com/geek) -
@@ -299,6 +299,8 @@ more information about the governance of the Node.js project, see
 **Prince John Wesley** &lt;princejohnwesley@gmail.com&gt;
 * [qard](https://github.com/qard) -
 **Stephen Belanger** &lt;admin@stephenbelanger.com&gt; (he/him)
+* [richardlau](https://github.com/richardlau) -
+**Richard Lau** &lt;riclau@uk.ibm.com&gt;
 * [rlidwka](https://github.com/rlidwka) -
 **Alex Kocharin** &lt;alex@kocharin.ru&gt;
 * [rmg](https://github.com/rmg) -
@@ -337,6 +339,10 @@ more information about the governance of the Node.js project, see
 **Mike Tunnicliffe** &lt;m.j.tunnicliffe@gmail.com&gt;
 * [vkurchatkin](https://github.com/vkurchatkin) -
 **Vladimir Kurchatkin** &lt;vladimir.kurchatkin@gmail.com&gt;
+* [vsemozhetbyt](https://github.com/vsemozhetbyt) -
+**Vse Mozhet Byt** &lt;vsemozhetbyt@gmail.com&gt; (he/him)
+* [watilde](https://github.com/watilde) -
+**Daijiro Wachi** &lt;daijiro.wachi@gmail.com&gt; (he/him)
 * [whitlockjc](https://github.com/whitlockjc) -
 **Jeremy Whitlock** &lt;jwhitlock@apache.org&gt;
 * [yorkie](https://github.com/yorkie) -
@@ -392,6 +398,11 @@ Previous releases may also have been signed with one of the following GPG keys:
 `114F43EE0176B71C7BC219DD50A3051F888C628D`
 * **Timothy J Fontaine** &lt;tjfontaine@gmail.com&gt;
 `7937DFD2AB06298B2293C3187D33FF9D0246406D`
+
+### Working Groups
+
+Information on the current Node.js Working Groups can be found in the
+[CTC repository](https://github.com/nodejs/CTC/blob/master/WORKING_GROUPS.md).
 
 [npm]: https://www.npmjs.com
 [Website]: https://nodejs.org/en/

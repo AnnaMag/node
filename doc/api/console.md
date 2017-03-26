@@ -53,6 +53,13 @@ myConsole.warn(`Danger ${name}! Danger!`);
 ```
 
 ## Class: Console
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/9744
+    description: Errors that occur while writing to the underlying streams
+                 will now be ignored.
+-->
 
 <!--type=class-->
 
@@ -66,6 +73,8 @@ const Console = console.Console;
 ```
 
 ### new Console(stdout[, stderr])
+* `stdout` {Writable}
+* `stderr` {Writable}
 
 Creates a new `Console` by passing one or two writable stream instances.
 `stdout` is a writable stream to print log or info output. `stderr`
@@ -94,6 +103,9 @@ new Console(process.stdout, process.stderr);
 <!-- YAML
 added: v0.1.101
 -->
+* `value` {any}
+* `message` {any}
+* `...args` {any}
 
 A simple assertion test that verifies whether `value` is truthy. If it is not,
 an `AssertionError` is thrown. If provided, the error `message` is formatted
@@ -155,6 +167,11 @@ console.log('this will also print');
 <!-- YAML
 added: v0.1.101
 -->
+* `obj` {any}
+* `options` {Object}
+  * `showHidden` {boolean}
+  * `depth` {number}
+  * `colors` {boolean}
 
 Uses [`util.inspect()`][] on `obj` and prints the resulting string to `stdout`.
 This function bypasses any custom `inspect()` function defined on `obj`. An
@@ -176,6 +193,8 @@ Defaults to `false`. Colors are customizable; see
 <!-- YAML
 added: v0.1.100
 -->
+* `data` {any}
+* `...args` {any}
 
 Prints to `stderr` with newline. Multiple arguments can be passed, with the
 first used as the primary message and all additional used as substitution
@@ -198,6 +217,8 @@ values are concatenated. See [`util.format()`][] for more information.
 <!-- YAML
 added: v0.1.100
 -->
+* `data` {any}
+* `...args` {any}
 
 The `console.info()` function is an alias for [`console.log()`][].
 
@@ -205,6 +226,8 @@ The `console.info()` function is an alias for [`console.log()`][].
 <!-- YAML
 added: v0.1.100
 -->
+* `data` {any}
+* `...args` {any}
 
 Prints to `stdout` with newline. Multiple arguments can be passed, with the
 first used as the primary message and all additional used as substitution
@@ -227,6 +250,7 @@ values are concatenated. See [`util.format()`][] for more information.
 <!-- YAML
 added: v0.1.104
 -->
+* `label` {string}
 
 Starts a timer that can be used to compute the duration of an operation. Timers
 are identified by a unique `label`. Use the same `label` when you call
@@ -236,7 +260,13 @@ milliseconds to `stdout`. Timer durations are accurate to the sub-millisecond.
 ### console.timeEnd(label)
 <!-- YAML
 added: v0.1.104
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5901
+    description: This method no longer supports multiple calls that don’t map
+                 to individual `console.time()` calls; see below for details.
 -->
+* `label` {string}
 
 Stops a timer that was previously started by calling [`console.time()`][] and
 prints the result to `stdout`:
@@ -255,10 +285,12 @@ leaking it. On older versions, the timer persisted. This allowed
 `console.timeEnd()` to be called multiple times for the same label. This
 functionality was unintended and is no longer supported.*
 
-### console.trace(message[, ...args])
+### console.trace([message][, ...args])
 <!-- YAML
 added: v0.1.104
 -->
+* `message` {any}
+* `...args` {any}
 
 Prints to `stderr` the string `'Trace :'`, followed by the [`util.format()`][]
 formatted message and stack trace to the current position in the code.
@@ -283,6 +315,8 @@ console.trace('Show me');
 <!-- YAML
 added: v0.1.100
 -->
+* `data` {any}
+* `...args` {any}
 
 The `console.warn()` function is an alias for [`console.error()`][].
 
