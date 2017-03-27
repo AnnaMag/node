@@ -346,8 +346,10 @@ class ContextifyContext {
     // false for Object.defineProperty(this, 'foo', ...)
     // false for vmResult.x = 5 where vmResult = vm.runInContext();
     bool is_contextual_store = ctx->global_proxy() != args.This();
+    bool is_function = value->IsFunction();
 
-    if (!is_declared && args.ShouldThrowOnError() && is_contextual_store)
+    if (!is_declared && args.ShouldThrowOnError() && is_contextual_store &&
+      !is_function)
       return;
 
     ctx->sandbox()->Set(property, value);
@@ -372,8 +374,20 @@ class ContextifyContext {
             sandbox->GetOwnPropertyDescriptor(context, key);
 
         Local<Value> descriptor;
+        ///
+        auto attributes = PropertyAttribute::None;
+        bool is_declared =
+            ctx->global_proxy()->GetRealNamedPropertyAttributes(ctx->context(),
+                                                                property)
+            .To(&attributes);
+        bool read_only =
+            static_cast<int>(attributes) &
+            static_cast<int>(PropertyAttribute::ReadOnly);
+        ////
+        bool from_global = 0;
         if (!maybe_descriptor_intercepted.ToLocal(&descriptor)) {
             maybe_descriptor_intercepted = ctx->global_proxy()->GetOwnPropertyDescriptor(context, key);
+            from_global = 1;
         }
         Local<Value> desc = maybe_descriptor_intercepted.ToLocalChecked();
       //  if (!desc->IsUndefined()) {
