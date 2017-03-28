@@ -346,8 +346,10 @@ class ContextifyContext {
     // false for Object.defineProperty(this, 'foo', ...)
     // false for vmResult.x = 5 where vmResult = vm.runInContext();
     bool is_contextual_store = ctx->global_proxy() != args.This();
+    bool is_function = value->IsFunction();
 
-    if (!is_declared && args.ShouldThrowOnError() && is_contextual_store)
+    if (!is_declared && args.ShouldThrowOnError() && is_contextual_store &&
+        !is_function)
       return;
 
     ctx->sandbox()->Set(property, value);
@@ -379,9 +381,9 @@ class ContextifyContext {
       //  if (!desc->IsUndefined()) {
       //      info.GetReturnValue().Set(desc);
       //  } else {
-        if (!desc->IsUndefined()) { //rewrite
-            info.GetReturnValue().Set(desc);
-        }
+    //    if (!desc->IsUndefined()) { //rewrite
+      //      info.GetReturnValue().Set(desc);
+      //  }
       }
 
  static void GlobalPropertyDefinerCallback(
@@ -429,11 +431,10 @@ class ContextifyContext {
           PropertyDescriptor desc_for_sandbox(value, desc.writable());
           define_prop_on_sandbox(&desc_for_sandbox);
       } else {
-          PropertyDescriptor desc_for_sandbox(value);
+          PropertyDescriptor desc_for_sandbox(value, false);
           define_prop_on_sandbox(&desc_for_sandbox);
         }
       }
-    //  info.GetReturnValue().Set(true);
     }
 
 
