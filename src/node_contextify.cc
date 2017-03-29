@@ -370,31 +370,20 @@ class ContextifyContext {
         Local<String> key = property->ToString(isolate);
         Local<Object> sandbox = ctx->sandbox();
 
-        MaybeLocal<Value> maybe_descriptor_intercepted =
-            sandbox->GetOwnPropertyDescriptor(context, key);
+        Local<Value> descriptor_intercepted;
 
-        Local<Value> descriptor;
-        ///
-        auto attributes = PropertyAttribute::None;
-        bool is_declared =
-            ctx->global_proxy()->GetRealNamedPropertyAttributes(ctx->context(),
-                                                                property)
-            .To(&attributes);
-        bool read_only =
-            static_cast<int>(attributes) &
-            static_cast<int>(PropertyAttribute::ReadOnly);
-        ////
-        bool from_global = 0;
-        if (!maybe_descriptor_intercepted.ToLocal(&descriptor)) {
-            maybe_descriptor_intercepted = ctx->global_proxy()->GetOwnPropertyDescriptor(context, key);
-            from_global = 1;
+        Maybe<bool> has = sandbox->HasOwnProperty(context, key);
+
+        if (has.IsNothing()){
+          descriptor_intercepted = ctx->global_proxy()
+          ->GetOwnPropertyDescriptor(context, key).ToLocalChecked();
+        } else {
+          descriptor_intercepted =
+          sandbox->GetOwnPropertyDescriptor(context, key).ToLocalChecked();
         }
-        Local<Value> desc = maybe_descriptor_intercepted.ToLocalChecked();
-      //  if (!desc->IsUndefined()) {
-      //      info.GetReturnValue().Set(desc);
-      //  } else {
-        if (!desc->IsUndefined()) { //rewrite
-            info.GetReturnValue().Set(desc);
+
+        if (!descriptor_intercepted->IsUndefined()) {
+          info.GetReturnValue().Set(descriptor_intercepted);
         }
       }
 
@@ -407,14 +396,22 @@ class ContextifyContext {
 
       v8::Isolate* isolate = context->GetIsolate();
       HandleScope scope(isolate);
-      // Still initializing
       if (ctx->context_.IsEmpty())
           return;
 
       auto attributes = PropertyAttribute::None;
       bool is_declared =
-              ctx->global_proxy()->GetRealNamedPropertyAttributes(ctx->context(),
-                                        property).To(&attributes);
+          ctx->global_proxy()->GetRealNamedPropertyAttributes(ctx->context(),
+                                                              property)
+          .To(&attributes);
+      bool read_only =
+          static_cast<int>(attributes) &
+          static_cast<int>(PropertyAttribute::ReadOnly);
+
+      bool x = false;
+      if (is_declared && read_only)
+          x = true;
+        //return;
 
       Local<Object> sandbox = ctx->sandbox();
 
@@ -447,7 +444,6 @@ class ContextifyContext {
           define_prop_on_sandbox(&desc_for_sandbox);
         }
       }
-    //  info.GetReturnValue().Set(true);
     }
 
 
