@@ -141,13 +141,21 @@ class ContextifyContext {
     Local<ObjectTemplate> object_template =
         function_template->InstanceTemplate();
 
+    // NamedPropertyHandlerConfiguration
+    //         config(GlobalPropertyGetterCallback,
+    //                GlobalPropertySetterCallback,
+    //                GlobalPropertyDescriptorCallback,
+    //                GlobalPropertyDeleterCallback,
+    //                GlobalPropertyEnumeratorCallback,
+    //                GlobalPropertyDefinerCallback,
+    //                CreateDataWrapper(env));
     NamedPropertyHandlerConfiguration
             config(GlobalPropertyGetterCallback,
-                   GlobalPropertySetterCallback,
-                   GlobalPropertyDescriptorCallback,
-                   GlobalPropertyDeleterCallback,
-                   GlobalPropertyEnumeratorCallback,
-                   GlobalPropertyDefinerCallback,
+                   nullptr,
+                   InterceptingPropertyDescriptorCallback,
+                   nullptr,
+                   nullptr,
+                   NotInterceptingPropertyDefineCallback,
                    CreateDataWrapper(env));
     object_template->SetHandler(config);
 
@@ -287,7 +295,44 @@ class ContextifyContext {
     }
     return nullptr;
   }
+  static void InterceptingPropertyDescriptorCallback(
+    Local<Name> property, const PropertyCallbackInfo<Value>& info) {
+    ContextifyContext* ctx;
+    ASSIGN_OR_RETURN_UNWRAP(&ctx, info.Data().As<Object>());
 
+    // Still initializing
+    if (ctx->context_.IsEmpty())
+      return;
+    Local<Context> context = ctx->context();
+    v8::Isolate* isolate = context->GetIsolate();
+    HandleScope scope(isolate);
+
+    Local<String> key = property->ToString(isolate);
+
+    MaybeLocal<Value> maybe_descriptor_intercepted =
+       ctx->global_proxy()->GetOwnPropertyDescriptor(context, key);
+    //
+    // Local<Value> desc = maybe_descriptor_intercepted.ToLocalChecked();
+    // if (!desc->IsUndefined()) {
+    //       info.GetReturnValue().Set(desc);
+    //  }
+  }
+  static void NotInterceptingPropertyDescriptorCallback(
+    Local<Name> property, const PropertyCallbackInfo<Value>& info) {
+    // Do not intercept by not calling info.GetReturnValue().Set().
+  }
+  static void NotInterceptingPropertyDefineCallback(
+      Local<Name> name, const v8::PropertyDescriptor& desc,
+      const v8::PropertyCallbackInfo<v8::Value>& info) {
+    // Do not intercept by not calling info.GetReturnValue().Set().
+  }
+
+  static void InterceptingPropertyDefineCallback(
+      Local<Name> name, const v8::PropertyDescriptor& desc,
+      const v8::PropertyCallbackInfo<v8::Value>& info) {
+    // Intercept the callback by setting a non-empty handle
+    info.GetReturnValue().Set(name);
+  }
 
   static void GlobalPropertyGetterCallback(
       Local<Name> property,
@@ -302,10 +347,11 @@ class ContextifyContext {
     Local<Context> context = ctx->context();
     Local<Object> sandbox = ctx->sandbox();
     MaybeLocal<Value> maybe_rv =
-        sandbox->GetRealNamedProperty(context, property);
+    ctx->global_proxy()->GetRealNamedProperty(context, property);
+//        sandbox->GetRealNamedProperty(context, property);
     if (maybe_rv.IsEmpty()) {
-      maybe_rv =
-          ctx->global_proxy()->GetRealNamedProperty(context, property);
+        maybe_rv =
+           ctx->global_proxy()->GetRealNamedProperty(context, property);
     }
 
     Local<Value> rv;
@@ -381,9 +427,9 @@ class ContextifyContext {
       //  if (!desc->IsUndefined()) {
       //      info.GetReturnValue().Set(desc);
       //  } else {
-    //    if (!desc->IsUndefined()) { //rewrite
-      //      info.GetReturnValue().Set(desc);
-      //  }
+       if (!desc->IsUndefined()) { //rewrite
+              info.GetReturnValue().Set(desc);
+         }
       }
 
  static void GlobalPropertyDefinerCallback(
