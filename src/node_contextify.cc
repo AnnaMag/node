@@ -150,7 +150,7 @@ class ContextifyContext {
     //                GlobalPropertyDefinerCallback,
     //                CreateDataWrapper(env));
     NamedPropertyHandlerConfiguration
-            config(GlobalPropertyGetterCallback,
+            config(nullptr,
                    nullptr,
                    InterceptingPropertyDescriptorCallback,
                    nullptr,
@@ -304,19 +304,22 @@ class ContextifyContext {
     if (ctx->context_.IsEmpty())
       return;
     Local<Context> context = ctx->context();
-    v8::Isolate* isolate = context->GetIsolate();
-    HandleScope scope(isolate);
+    Local<String> key = property->ToString(context->GetIsolate());
 
-    Local<String> key = property->ToString(isolate);
+    Local<Value> descriptor_intercepted;
 
-    MaybeLocal<Value> maybe_descriptor_intercepted =
-       ctx->global_proxy()->GetOwnPropertyDescriptor(context, key);
+    Maybe<bool> has = ctx->global_proxy()->HasOwnProperty(context, key);
+
+    if (has.IsJust()) {
+      descriptor_intercepted = ctx->global_proxy()->GetOwnPropertyDescriptor(context, key)
+      .ToLocalChecked();
+      info.GetReturnValue().Set(descriptor_intercepted);
+    }
+    // if (!descriptor_intercepted->IsUndefined()) {
     //
-    // Local<Value> desc = maybe_descriptor_intercepted.ToLocalChecked();
-    // if (!desc->IsUndefined()) {
-    //       info.GetReturnValue().Set(desc);
-    //  }
+    //     }
   }
+
   static void NotInterceptingPropertyDescriptorCallback(
     Local<Name> property, const PropertyCallbackInfo<Value>& info) {
     // Do not intercept by not calling info.GetReturnValue().Set().
