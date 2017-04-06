@@ -302,7 +302,8 @@ class ContextifyContext {
     Local<Context> context = ctx->context();
     Local<Object> sandbox = ctx->sandbox();
     MaybeLocal<Value> maybe_rv =
-        sandbox->GetRealNamedProperty(context, property);
+        ctx->global_proxy()->GetRealNamedProperty(context, property);
+      //  sandbox->GetRealNamedProperty(context, property);
     if (maybe_rv.IsEmpty()) {
       maybe_rv =
           ctx->global_proxy()->GetRealNamedProperty(context, property);
@@ -408,10 +409,9 @@ class ContextifyContext {
           static_cast<int>(attributes) &
           static_cast<int>(PropertyAttribute::ReadOnly);
 
-      bool x = false;
+      // if it is set on the global as read_only, return
       if (is_declared && read_only)
-          x = true;
-        //return;
+          return;
 
       Local<Object> sandbox = ctx->sandbox();
 
