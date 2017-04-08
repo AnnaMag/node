@@ -112,93 +112,6 @@ class ContextifyContext {
     return Local<Object>::Cast(context()->GetEmbedderData(kSandboxObjectIndex));
   }
 
-  // XXX(isaacs): This function only exists because of a shortcoming of
-  // the V8 SetNamedPropertyHandler function.
-  //
-  // It does not provide a way to intercept Object.defineProperty(..)
-  // calls.  As a result, these properties are not copied onto the
-  // contextified sandbox when a new global property is added via either
-  // a function declaration or a Object.defineProperty(global, ...) call.
-  //
-  // Note that any function declarations or Object.defineProperty()
-  // globals that are created asynchronously (in a setTimeout, callback,
-  // etc.) will happen AFTER the call to copy properties, and thus not be
-  // caught.
-  //
-  // The way to properly fix this is to add some sort of a
-  // Object::SetNamedDefinePropertyHandler() function that takes a callback,
-  // which receives the property name and property descriptor as arguments.
-  //
-  // Luckily, such situations are rare, and asynchronously-added globals
-  // weren't supported by Node's VM module until 0.12 anyway.  But, this
-  // should be fixed properly in V8, and this copy function should be
-  // removed once there is a better way.
-  void CopyProperties() {
-    HandleScope scope(env()->isolate());
-
-    Local<Context> context = PersistentToLocal(env()->isolate(), context_);
-    Local<Object> global =
-        context->Global()->GetPrototype()->ToObject(env()->isolate());
-    Local<Object> sandbox_obj = sandbox();
-
-    Local<Function> clone_property_method;
-
-    Local<Array> names = global->GetOwnPropertyNames();
-    int length = names->Length();
-    for (int i = 0; i < length; i++) {
-      Local<String> key = names->Get(i)->ToString(env()->isolate());
-      Maybe<bool> has = sandbox_obj->HasOwnProperty(context, key);
-
-      // Check for pending exceptions
-      if (has.IsNothing())
-        return;
-
-      if (!has.FromJust()) {
-        Local<Object> desc_vm_context =
-            global->GetOwnPropertyDescriptor(context, key)
-            .ToLocalChecked().As<Object>();
-
-        bool is_accessor =
-            desc_vm_context->Has(context, env()->get_string()).FromJust() ||
-            desc_vm_context->Has(context, env()->set_string()).FromJust();
-
-        auto define_property_on_sandbox = [&] (PropertyDescriptor* desc) {
-            desc->set_configurable(desc_vm_context
-                ->Get(context, env()->configurable_string()).ToLocalChecked()
-                ->BooleanValue(context).FromJust());
-            desc->set_enumerable(desc_vm_context
-                ->Get(context, env()->enumerable_string()).ToLocalChecked()
-                ->BooleanValue(context).FromJust());
-            CHECK(sandbox_obj->DefineProperty(context, key, *desc).FromJust());
-        };
-
-        if (is_accessor) {
-          Local<Function> get =
-              desc_vm_context->Get(context, env()->get_string())
-              .ToLocalChecked().As<Function>();
-          Local<Function> set =
-              desc_vm_context->Get(context, env()->set_string())
-              .ToLocalChecked().As<Function>();
-
-          PropertyDescriptor desc(get, set);
-          define_property_on_sandbox(&desc);
-        } else {
-          Local<Value> value =
-              desc_vm_context->Get(context, env()->value_string())
-              .ToLocalChecked();
-
-          bool writable =
-              desc_vm_context->Get(context, env()->writable_string())
-              .ToLocalChecked()->BooleanValue(context).FromJust();
-
-          PropertyDescriptor desc(value, writable);
-          define_property_on_sandbox(&desc);
-        }
-    }
-  }
-}
-
-
   // This is an object that just keeps an internal pointer to this
   // ContextifyContext.  It's passed to the NamedPropertyHandler.  If we
   // pass the main JavaScript context object we're embedded in, then the
@@ -228,12 +141,14 @@ class ContextifyContext {
     Local<ObjectTemplate> object_template =
         function_template->InstanceTemplate();
 
-    NamedPropertyHandlerConfiguration config(GlobalPropertyGetterCallback,
-                                             GlobalPropertySetterCallback,
-                                             GlobalPropertyQueryCallback,
-                                             GlobalPropertyDeleterCallback,
-                                             GlobalPropertyEnumeratorCallback,
-                                             CreateDataWrapper(env));
+    NamedPropertyHandlerConfiguration
+            config(GlobalPropertyGetterCallback,
+                   GlobalPropertySetterCallback,
+                   GlobalPropertyDescriptorCallback,
+                   GlobalPropertyDeleterCallback,
+                   GlobalPropertyEnumeratorCallback,
+                   GlobalPropertyDefinerCallback,
+                   CreateDataWrapper(env));
     object_template->SetHandler(config);
 
     Local<Context> ctx = Context::New(env->isolate(), nullptr, object_template);
@@ -387,6 +302,7 @@ class ContextifyContext {
     Local<Context> context = ctx->context();
     Local<Object> sandbox = ctx->sandbox();
     MaybeLocal<Value> maybe_rv =
+        // ctx->global_proxy()->GetRealNamedProperty(context, property);
         sandbox->GetRealNamedProperty(context, property);
     if (maybe_rv.IsEmpty()) {
       maybe_rv =
@@ -401,7 +317,6 @@ class ContextifyContext {
       args.GetReturnValue().Set(rv);
     }
   }
-
 
   static void GlobalPropertySetterCallback(
       Local<Name> property,
@@ -431,49 +346,109 @@ class ContextifyContext {
     // false for Object.defineProperty(this, 'foo', ...)
     // false for vmResult.x = 5 where vmResult = vm.runInContext();
     bool is_contextual_store = ctx->global_proxy() != args.This();
-
-    // Indicator to not return before setting (undeclared) function declarations
-    // on the sandbox in strict mode, i.e. args.ShouldThrowOnError() = true.
-    // True for 'function f() {}', 'this.f = function() {}',
-    // 'var f = function()'.
-    // In effect only for 'function f() {}' because
-    // var f = function(), is_declared = true
-    // this.f = function() {}, is_contextual_store = false.
     bool is_function = value->IsFunction();
 
     if (!is_declared && args.ShouldThrowOnError() && is_contextual_store &&
-    !is_function)
+      !is_function)
       return;
 
     ctx->sandbox()->Set(property, value);
   }
 
+  static void GlobalPropertyDescriptorCallback(
+      Local<Name> property, const PropertyCallbackInfo<Value>& info) {
+        ContextifyContext* ctx;
+        ASSIGN_OR_RETURN_UNWRAP(&ctx, info.Data().As<Object>());
 
-  static void GlobalPropertyQueryCallback(
-      Local<Name> property,
-      const PropertyCallbackInfo<Integer>& args) {
-    ContextifyContext* ctx;
-    ASSIGN_OR_RETURN_UNWRAP(&ctx, args.Data().As<Object>());
+        // Still initializing
+        if (ctx->context_.IsEmpty())
+          return;
+        Local<Context> context = ctx->context();
+        v8::Isolate* isolate = context->GetIsolate();
+        HandleScope scope(isolate);
 
-    // Still initializing
-    if (ctx->context_.IsEmpty())
-      return;
+        Local<String> key = property->ToString(isolate);
+        Local<Object> sandbox = ctx->sandbox();
 
-    Local<Context> context = ctx->context();
-    Maybe<PropertyAttribute> maybe_prop_attr =
-        ctx->sandbox()->GetRealNamedPropertyAttributes(context, property);
+        Local<Value> descriptor_intercepted;
 
-    if (maybe_prop_attr.IsNothing()) {
-      maybe_prop_attr =
-          ctx->global_proxy()->GetRealNamedPropertyAttributes(context,
-                                                              property);
+        Maybe<bool> has = sandbox->HasOwnProperty(context, key);
+
+        if (has.IsNothing()) {
+          descriptor_intercepted = ctx->global_proxy()
+          ->GetOwnPropertyDescriptor(context, key).ToLocalChecked();
+        } else {
+          descriptor_intercepted =
+          sandbox->GetOwnPropertyDescriptor(context, key).ToLocalChecked();
+        }
+
+        if (!descriptor_intercepted->IsUndefined()) {
+          info.GetReturnValue().Set(descriptor_intercepted);
+        }
+      }
+
+static void GlobalPropertyDefinerCallback(
+      Local<Name> property, const PropertyDescriptor& desc,
+      const PropertyCallbackInfo<Value>& info) {
+      ContextifyContext* ctx;
+      ASSIGN_OR_RETURN_UNWRAP(&ctx, info.Data().As<Object>());
+      Local<Context> context = ctx->context();
+
+      v8::Isolate* isolate = context->GetIsolate();
+      HandleScope scope(isolate);
+      if (ctx->context_.IsEmpty())
+          return;
+
+      auto attributes = PropertyAttribute::None;
+      bool is_declared =
+          ctx->global_proxy()->GetRealNamedPropertyAttributes(ctx->context(),
+                                                              property)
+          .To(&attributes);
+      bool read_only =
+          static_cast<int>(attributes) &
+          static_cast<int>(PropertyAttribute::ReadOnly);
+
+      // if it is set on the global as read_only, return
+      if (is_declared && read_only)
+          return;
+
+      Local<Object> sandbox = ctx->sandbox();
+
+      auto define_prop_on_sandbox_and_global = [&] (PropertyDescriptor* desc_for_sandbox) {
+          if (desc.has_enumerable()) {
+              desc_for_sandbox->set_enumerable(desc.enumerable());
+            }
+          if (desc.has_configurable()) {
+              desc_for_sandbox->set_configurable(desc.configurable());
+          }
+        sandbox->DefinePropertyWithoutInterceptors(context, property,
+              *desc_for_sandbox);
+        ctx->global_proxy()->DefinePropertyWithoutInterceptors(context,
+              property, *desc_for_sandbox);   // set on the global
+        info.GetReturnValue().Set(property);  // intercept so as not to trigger
+                                              // the Descriptor callback
+      };
+
+      if (desc.has_get() || desc.has_set()) {
+          Local<Value> get =
+              desc.has_get() ? desc.get() : v8::Undefined(isolate).As<Value>();
+          Local<Value> set =
+              desc.has_set() ? desc.set() : v8::Undefined(isolate).As<Value>();
+          PropertyDescriptor desc_for_sandbox(get, set);
+          define_prop_on_sandbox_and_global(&desc_for_sandbox);
+      } else {
+      Local<Value> value =
+          desc.has_value() ? desc.value() : v8::Undefined(isolate).As<Value>();
+
+      if (desc.has_writable()) {
+          PropertyDescriptor desc_for_sandbox(value, desc.writable());
+          define_prop_on_sandbox_and_global(&desc_for_sandbox);
+      } else {
+          PropertyDescriptor desc_for_sandbox(value);
+          define_prop_on_sandbox_and_global(&desc_for_sandbox);
+        }
+      }
     }
-
-    if (maybe_prop_attr.IsJust()) {
-      PropertyAttribute prop_attr = maybe_prop_attr.FromJust();
-      args.GetReturnValue().Set(prop_attr);
-    }
-  }
 
 
   static void GlobalPropertyDeleterCallback(
@@ -678,14 +653,12 @@ class ContextifyScript : public BaseObject {
       TryCatch try_catch(env->isolate());
       // Do the eval within the context
       Context::Scope context_scope(contextify_context->context());
-      if (EvalMachine(contextify_context->env(),
+      EvalMachine(contextify_context->env(),
                       timeout,
                       display_errors,
                       break_on_sigint,
                       args,
-                      &try_catch)) {
-        contextify_context->CopyProperties();
-      }
+                      &try_catch);
 
       if (try_catch.HasCaught()) {
         try_catch.ReThrow();
