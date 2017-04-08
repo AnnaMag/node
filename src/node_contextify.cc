@@ -302,8 +302,8 @@ class ContextifyContext {
     Local<Context> context = ctx->context();
     Local<Object> sandbox = ctx->sandbox();
     MaybeLocal<Value> maybe_rv =
-        ctx->global_proxy()->GetRealNamedProperty(context, property);
-      //  sandbox->GetRealNamedProperty(context, property);
+        // ctx->global_proxy()->GetRealNamedProperty(context, property);
+        sandbox->GetRealNamedProperty(context, property);
     if (maybe_rv.IsEmpty()) {
       maybe_rv =
           ctx->global_proxy()->GetRealNamedProperty(context, property);
@@ -317,7 +317,6 @@ class ContextifyContext {
       args.GetReturnValue().Set(rv);
     }
   }
-
 
   static void GlobalPropertySetterCallback(
       Local<Name> property,
@@ -375,7 +374,7 @@ class ContextifyContext {
 
         Maybe<bool> has = sandbox->HasOwnProperty(context, key);
 
-        if (has.IsNothing()){
+        if (has.IsNothing()) {
           descriptor_intercepted = ctx->global_proxy()
           ->GetOwnPropertyDescriptor(context, key).ToLocalChecked();
         } else {
@@ -388,7 +387,7 @@ class ContextifyContext {
         }
       }
 
- static void GlobalPropertyDefinerCallback(
+static void GlobalPropertyDefinerCallback(
       Local<Name> property, const PropertyDescriptor& desc,
       const PropertyCallbackInfo<Value>& info) {
       ContextifyContext* ctx;
@@ -422,11 +421,12 @@ class ContextifyContext {
           if (desc.has_configurable()) {
               desc_for_sandbox->set_configurable(desc.configurable());
           }
-        sandbox->DefinePropertyWithoutInterceptors(context, property, *desc_for_sandbox);
+        sandbox->DefinePropertyWithoutInterceptors(context, property,
+              *desc_for_sandbox);
         ctx->global_proxy()->DefinePropertyWithoutInterceptors(context,
-              property, *desc_for_sandbox); // set on the global
-        info.GetReturnValue().Set(property); // intercept so we don't trigger
-                                          // Descriptor callback=regular define
+              property, *desc_for_sandbox);   // set on the global
+        info.GetReturnValue().Set(property);  // intercept so as not to trigger
+                                              // the Descriptor callback
       };
 
       if (desc.has_get() || desc.has_set()) {

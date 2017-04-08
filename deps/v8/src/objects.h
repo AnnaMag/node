@@ -2054,6 +2054,12 @@ class JSReceiver: public HeapObject {
       Isolate* isolate, Handle<JSReceiver> object, Handle<Object> key,
       PropertyDescriptor* desc, ShouldThrow should_throw);
 
+  // "virtual" dispatcher to the correct [[DefineOwnPropertyWithoutIntercept]]
+  // implementation.
+  MUST_USE_RESULT static Maybe<bool> DefineOwnPropertyWithoutIntercept(
+      Isolate* isolate, Handle<JSReceiver> object, Handle<Object> key,
+      PropertyDescriptor* desc, ShouldThrow should_throw);
+
   // ES6 7.3.4 (when passed DONT_THROW)
   MUST_USE_RESULT static Maybe<bool> CreateDataProperty(
       LookupIterator* it, Handle<Object> value, ShouldThrow should_throw);
@@ -10459,6 +10465,10 @@ class JSProxy: public JSReceiver {
       Isolate* isolate, Handle<JSProxy> object, Handle<Object> key,
       PropertyDescriptor* desc, ShouldThrow should_throw);
 
+  MUST_USE_RESULT static Maybe<bool> DefineOwnPropertyWithoutIntercept(
+      Isolate* isolate, Handle<JSProxy> object, Handle<Object> key,
+      PropertyDescriptor* desc, ShouldThrow should_throw);
+
   // ES6 9.5.7
   MUST_USE_RESULT static Maybe<bool> HasProperty(Isolate* isolate,
                                                  Handle<JSProxy> proxy,
@@ -10907,6 +10917,10 @@ class JSTypedArray: public JSArrayBufferView {
       Isolate* isolate, Handle<JSTypedArray> o, Handle<Object> key,
       PropertyDescriptor* desc, ShouldThrow should_throw);
 
+  MUST_USE_RESULT static Maybe<bool> DefineOwnPropertyWithoutIntercept(
+      Isolate* isolate, Handle<JSTypedArray> o, Handle<Object> key,
+      PropertyDescriptor* desc, ShouldThrow should_throw);
+
   DECLARE_CAST(JSTypedArray)
 
   ExternalArrayType type();
@@ -11020,6 +11034,10 @@ class JSArray: public JSObject {
   MUST_USE_RESULT static Maybe<bool> DefineOwnProperty(
       Isolate* isolate, Handle<JSArray> o, Handle<Object> name,
       PropertyDescriptor* desc, ShouldThrow should_throw);
+
+  MUST_USE_RESULT static Maybe<bool> DefineOwnPropertyWithoutIntercept(
+          Isolate* isolate, Handle<JSArray> o, Handle<Object> name,
+          PropertyDescriptor* desc, ShouldThrow should_throw);
 
   static bool AnythingToArrayLength(Isolate* isolate,
                                     Handle<Object> length_object,

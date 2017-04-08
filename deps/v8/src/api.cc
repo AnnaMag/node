@@ -4279,9 +4279,12 @@ Maybe<bool> v8::Object::DefinePropertyWithoutInterceptors(
   //     isolate, self, key_obj, &descriptor.get_private()->desc,
   //     i::Object::DONT_THROW);
 
+  // Maybe<bool> success =
+  //   i::JSReceiver::OrdinaryDefineOwnPropertyWithoutIntercept(
+  //   isolate, i::Handle<i::JSObject>::cast(self), key_obj, &descriptor.get_private()->desc, i::Object::THROW_ON_ERROR);
   Maybe<bool> success =
-    i::JSReceiver::OrdinaryDefineOwnPropertyWithoutIntercept(
-    isolate, i::Handle<i::JSObject>::cast(self), key_obj, &descriptor.get_private()->desc, i::Object::THROW_ON_ERROR);
+       i::JSReceiver::DefineOwnPropertyWithoutIntercept(
+       isolate, self, key_obj, &descriptor.get_private()->desc, i::Object::DONT_THROW);
 
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return success;
