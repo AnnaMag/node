@@ -408,25 +408,27 @@ static void GlobalPropertyDefinerCallback(
           static_cast<int>(attributes) &
           static_cast<int>(PropertyAttribute::ReadOnly);
 
-      // if it is set on the global as read_only, return
+      // If it is set on the global object as read_only, return
       if (is_declared && read_only)
           return;
 
       Local<Object> sandbox = ctx->sandbox();
 
-      auto define_prop_on_sandbox_and_global = [&] (PropertyDescriptor* desc_for_sandbox) {
-          if (desc.has_enumerable()) {
-              desc_for_sandbox->set_enumerable(desc.enumerable());
-            }
-          if (desc.has_configurable()) {
-              desc_for_sandbox->set_configurable(desc.configurable());
-          }
-        sandbox->DefinePropertyWithoutInterceptors(context, property,
-              *desc_for_sandbox);
-        ctx->global_proxy()->DefinePropertyWithoutInterceptors(context,
-              property, *desc_for_sandbox);   // set on the global
-        info.GetReturnValue().Set(property);  // intercept so as not to trigger
-                                              // the Descriptor callback
+      // Set property on the sandbox and global object
+      auto def_prop_on_objects = [&] (PropertyDescriptor* desc_from_defprop) {
+              if (desc.has_enumerable()) {
+                  desc_from_defprop->set_enumerable(desc.enumerable());
+                }
+              if (desc.has_configurable()) {
+                  desc_from_defprop->set_configurable(desc.configurable());
+              }
+            sandbox->DefineProperty(context, property,*desc_from_defprop);
+                                                  // set on the sandbox
+            ctx->global_proxy()->DefinePropertyWithoutInterceptors(context,
+                  property, *desc_from_defprop);  // set on the global object
+            info.GetReturnValue().Set(property);  // intercept, to not trigger
+                                                  // re-definition on the global
+                                                  // in the 'usual' way
       };
 
       if (desc.has_get() || desc.has_set()) {
@@ -434,18 +436,18 @@ static void GlobalPropertyDefinerCallback(
               desc.has_get() ? desc.get() : v8::Undefined(isolate).As<Value>();
           Local<Value> set =
               desc.has_set() ? desc.set() : v8::Undefined(isolate).As<Value>();
-          PropertyDescriptor desc_for_sandbox(get, set);
-          define_prop_on_sandbox_and_global(&desc_for_sandbox);
+          PropertyDescriptor desc_from_defprop(get, set);
+          def_prop_on_objects(&desc_from_defprop);
       } else {
       Local<Value> value =
           desc.has_value() ? desc.value() : v8::Undefined(isolate).As<Value>();
 
       if (desc.has_writable()) {
-          PropertyDescriptor desc_for_sandbox(value, desc.writable());
-          define_prop_on_sandbox_and_global(&desc_for_sandbox);
+          PropertyDescriptor desc_from_defprop(value, desc.writable());
+          def_prop_on_objects(&desc_from_defprop);
       } else {
-          PropertyDescriptor desc_for_sandbox(value);
-          define_prop_on_sandbox_and_global(&desc_for_sandbox);
+          PropertyDescriptor desc_from_defprop(value);
+          def_prop_on_objects(&desc_from_defprop);
         }
       }
     }

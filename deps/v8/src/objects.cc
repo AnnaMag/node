@@ -6802,7 +6802,7 @@ Maybe<bool> JSArray::DefineOwnProperty(Isolate* isolate, Handle<JSArray> o,
   return OrdinaryDefineOwnProperty(isolate, o, name, desc, should_throw);
 }
 
-// not triggering Descriptor interceptor for DefineProperty
+
 // static
 Maybe<bool> JSArray::DefineOwnPropertyWithoutIntercept(Isolate* isolate,
                                        Handle<JSArray> o,
@@ -6839,9 +6839,11 @@ Maybe<bool> JSArray::DefineOwnPropertyWithoutIntercept(Isolate* isolate,
       RETURN_FAILURE(isolate, should_throw,
                      NewTypeError(MessageTemplate::kDefineDisallowed, name));
     }
-    // 3g. Let succeeded be OrdinaryDefineOwnProperty(A, P, Desc).
+    // 3g. Let succeeded be OrdinaryDefineOwnPropertyWithoutIntercept(A, P,
+    //     Desc).
     Maybe<bool> succeeded =
-        OrdinaryDefineOwnPropertyWithoutIntercept(isolate, o, name, desc, should_throw);
+        OrdinaryDefineOwnPropertyWithoutIntercept(isolate, o, name, desc,
+           should_throw);
     // 3h. Assert: succeeded is not an abrupt completion.
     //     In our case, if should_throw == THROW_ON_ERROR, it can be!
     // 3i. If succeeded is false, return false.
@@ -7103,7 +7105,7 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
   return Just(true);
 }
 
-// not triggering Descriptor Callback for DefineProperty
+
 // static
 Maybe<bool> JSProxy::DefineOwnPropertyWithoutIntercept(Isolate* isolate,
                                        Handle<JSProxy> proxy,
@@ -17335,7 +17337,7 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
   return OrdinaryDefineOwnProperty(isolate, o, key, desc, should_throw);
 }
 
-// not triggering Descriptor callback for DefineProperty
+
 // static
 Maybe<bool> JSTypedArray::DefineOwnPropertyWithoutIntercept(Isolate* isolate,
                                             Handle<JSTypedArray> o,

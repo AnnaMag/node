@@ -16,3 +16,17 @@ sandbox = { Proxy: Proxy };
 vm.runInNewContext('this.Proxy = Proxy', sandbox);
 assert.strictEqual(typeof sandbox.Proxy, 'function');
 assert.strictEqual(sandbox.Proxy, Proxy);
+
+// Sandbox does not throw when no is being run
+// Fixes: https://github.com/nodejs/node/issues/11902
+
+const handler = {
+    getOwnPropertyDescriptor: (target, prop) => {
+      throw new Error('whoops');
+    }
+};
+const sandboxProxy = new Proxy({foo: 'bar'}, handler);
+const context = vm.createContext(sandboxProxy);
+
+
+assert.doesNotThrow(() => vm.runInContext('', context));

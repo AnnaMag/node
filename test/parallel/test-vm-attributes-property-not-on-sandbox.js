@@ -21,5 +21,5 @@ const code = `Object.defineProperty(
              var desc = Object.getOwnPropertyDescriptor(this, 'foo');`;
 
 vm.runInContext(code, sandbox);
-// The descriptor is flattened. We wrongly have typeof desc.value = 'number'.
+// The descriptor is not flattened
 assert.strictEqual(typeof sandbox.desc.get, 'function');
