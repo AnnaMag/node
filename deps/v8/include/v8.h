@@ -2945,6 +2945,9 @@ class V8_EXPORT Object : public Value {
   V8_WARN_UNUSED_RESULT Maybe<bool> DefineProperty(
       Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor);
 
+  V8_WARN_UNUSED_RESULT Maybe<bool> DefinePropertyWithoutInterceptors(
+      Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor);
+
   // Sets an own property on this object bypassing interceptors and
   // overriding accessors or read-only properties.
   //

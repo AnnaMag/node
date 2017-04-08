@@ -4265,7 +4265,23 @@ Maybe<bool> v8::Object::DefineProperty(v8::Local<v8::Context> context,
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return success;
 }
+//*********
+Maybe<bool> v8::Object::DefinePropertyWithoutInterceptors(
+                                       v8::Local<v8::Context> context,
+                                       v8::Local<Name> key,
+                                       PropertyDescriptor& descriptor) {
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, Object,
+      DefinePropertyWithoutInterceptors, bool);
+  i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
+  i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
 
+  Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
+      isolate, self, key_obj, &descriptor.get_private()->desc,
+      i::Object::DONT_THROW);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return success;
+}
+//********
 MUST_USE_RESULT
 static i::MaybeHandle<i::Object> DefineObjectProperty(
     i::Handle<i::JSObject> js_object, i::Handle<i::Object> key,

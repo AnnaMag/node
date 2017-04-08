@@ -2039,6 +2039,13 @@ class JSReceiver: public HeapObject {
                                                 Handle<Object> object,
                                                 Handle<Object> name,
                                                 Handle<Object> attributes);
+                                                
+  MUST_USE_RESULT static Object* DefinePropertyWithoutInterceptors(
+                                                Isolate* isolate,
+                                                Handle<Object> object,
+                                                Handle<Object> name,
+                                                Handle<Object> attributes);
+
   MUST_USE_RESULT static MaybeHandle<Object> DefineProperties(
       Isolate* isolate, Handle<Object> object, Handle<Object> properties);
 

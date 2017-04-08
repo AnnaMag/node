@@ -422,7 +422,11 @@ class ContextifyContext {
           if (desc.has_configurable()) {
               desc_for_sandbox->set_configurable(desc.configurable());
           }
-          sandbox->DefineProperty(context, property, *desc_for_sandbox);
+        sandbox->DefinePropertyWithoutInterceptors(context, property, *desc_for_sandbox);
+        ctx->global_proxy()->DefinePropertyWithoutInterceptors(context,
+              property, *desc_for_sandbox); // set on the global
+        info.GetReturnValue().Set(property); // intercept so we don't trigger
+                                          // Descriptor callback=regular define
       };
 
       if (desc.has_get() || desc.has_set()) {

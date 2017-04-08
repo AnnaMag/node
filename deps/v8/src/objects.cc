@@ -6145,6 +6145,41 @@ Object* JSReceiver::DefineProperty(Isolate* isolate, Handle<Object> object,
   return *object;
 }
 
+//***************
+// modification of the above to set new property on the global object
+// after it was just set on the sandbox
+Object* JSReceiver::DefinePropertyWithoutInterceptors(Isolate* isolate,
+                                   Handle<Object> object,
+                                   Handle<Object> key,
+                                   Handle<Object> attributes) {
+  // 1. If Type(O) is not Object, throw a TypeError exception.
+  if (!object->IsJSReceiver()) {
+    Handle<String> fun_name =
+        isolate->factory()
+        ->InternalizeUtf8String("Object.definePropertyWithoutInterceptors");
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject, fun_name));
+  }
+  // 2. Let key be ToPropertyKey(P).
+  // 3. ReturnIfAbrupt(key).
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key, ToPropertyKey(isolate, key));
+  // 4. Let desc be ToPropertyDescriptor(Attributes).
+  // 5. ReturnIfAbrupt(desc).
+  PropertyDescriptor desc;
+  if (!PropertyDescriptor::ToPropertyDescriptor(isolate, attributes, &desc)) {
+    return isolate->heap()->exception();
+  }
+  // 6. Let success be DefinePropertyOrThrow(O,key, desc).
+  Maybe<bool> success = DefineOwnProperty(
+      isolate, Handle<JSReceiver>::cast(object), key, &desc, THROW_ON_ERROR);
+  // 7. ReturnIfAbrupt(success).
+  MAYBE_RETURN(success, isolate->heap()->exception());
+  CHECK(success.FromJust());
+  // 8. Return O.
+  return *object;
+}
+
+//************
 
 // ES6 19.1.2.3.1
 // static
