@@ -6146,8 +6146,7 @@ Object* JSReceiver::DefineProperty(Isolate* isolate, Handle<Object> object,
 }
 
 //***************
-// modification of the above to set new property on the global object
-// after it was just set on the sandbox
+// version of DefineProperty() that sets a property on the global object
 Object* JSReceiver::DefinePropertyWithoutInterceptors(Isolate* isolate,
                                    Handle<Object> object,
                                    Handle<Object> key,
@@ -6170,8 +6169,9 @@ Object* JSReceiver::DefinePropertyWithoutInterceptors(Isolate* isolate,
     return isolate->heap()->exception();
   }
   // 6. Let success be DefinePropertyOrThrow(O,key, desc).
-  Maybe<bool> success = DefineOwnProperty(
-      isolate, Handle<JSReceiver>::cast(object), key, &desc, THROW_ON_ERROR);
+  Maybe<bool> success = OrdinaryDefineOwnPropertyWithoutIntercept(isolate,
+    Handle<JSObject>::cast(object), key, &desc, THROW_ON_ERROR);
+
   // 7. ReturnIfAbrupt(success).
   MAYBE_RETURN(success, isolate->heap()->exception());
   CHECK(success.FromJust());
@@ -6323,6 +6323,44 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(Isolate* isolate,
   return OrdinaryDefineOwnProperty(&it, desc, should_throw);
 }
 
+// static
+///*****************
+Maybe<bool> JSReceiver::OrdinaryDefineOwnPropertyWithoutIntercept(
+                                                  Isolate* isolate,
+                                                  Handle<JSObject> object,
+                                                  Handle<Object> key,
+                                                  PropertyDescriptor* desc,
+                                                  ShouldThrow should_throw) {
+  bool success = false;
+  DCHECK(key->IsName() || key->IsNumber());  // |key| is a PropertyKey...
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      isolate, object, key, &success, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  DCHECK(success);  // ...so creating a LookupIterator can't fail.
+
+  // Deal with access checks first.
+  if (it.state() == LookupIterator::ACCESS_CHECK) {
+    if (!it.HasAccess()) {
+      isolate->ReportFailedAccessCheck(it.GetHolder<JSObject>());
+      RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
+      return Just(true);
+    }
+    it.Next();
+  }
+  //
+  // // Handle interceptor
+  // if (it.state() == LookupIterator::INTERCEPTOR) {
+  //   if (it.HolderIsReceiverOrHiddenPrototype()) {
+  //     Maybe<bool> result = DefinePropertyWithInterceptorInternal(
+  //         &it, it.GetInterceptor(), should_throw, *desc);
+  //     if (result.IsNothing() || result.FromJust()) {
+  //       return result;
+  //     }
+  //   }
+  // }
+
+  return OrdinaryDefineOwnProperty(&it, desc, should_throw);
+}
+///*****************
 
 // ES6 9.1.6.1
 // static

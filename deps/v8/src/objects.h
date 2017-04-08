@@ -2039,7 +2039,7 @@ class JSReceiver: public HeapObject {
                                                 Handle<Object> object,
                                                 Handle<Object> name,
                                                 Handle<Object> attributes);
-                                                
+
   MUST_USE_RESULT static Object* DefinePropertyWithoutInterceptors(
                                                 Isolate* isolate,
                                                 Handle<Object> object,
@@ -2064,6 +2064,10 @@ class JSReceiver: public HeapObject {
       PropertyDescriptor* desc, ShouldThrow should_throw);
   MUST_USE_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
       LookupIterator* it, PropertyDescriptor* desc, ShouldThrow should_throw);
+
+  MUST_USE_RESULT static Maybe<bool> OrdinaryDefineOwnPropertyWithoutIntercept(
+      Isolate* isolate, Handle<JSObject> object, Handle<Object> key,
+      PropertyDescriptor* desc, ShouldThrow should_throw);
   // ES6 9.1.6.2
   MUST_USE_RESULT static Maybe<bool> IsCompatiblePropertyDescriptor(
       Isolate* isolate, bool extensible, PropertyDescriptor* desc,
