@@ -584,6 +584,7 @@ class RuntimeCallTimer final {
   V(Object_CreateDataProperty)                             \
   V(Object_DefineOwnProperty)                              \
   V(Object_DefineProperty)                                 \
+  V(Object_DefinePropertyWithoutInterceptors)              \
   V(Object_Delete)                                         \
   V(Object_DeleteProperty)                                 \
   V(Object_ForceSet)                                       \

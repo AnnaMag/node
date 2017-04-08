@@ -6145,6 +6145,37 @@ Object* JSReceiver::DefineProperty(Isolate* isolate, Handle<Object> object,
   return *object;
 }
 
+Object* JSReceiver::DefinePropertyWithoutInterceptors(Isolate* isolate,
+                                   Handle<Object> object,
+                                   Handle<Object> key,
+                                   Handle<Object> attributes) {
+  // 1. If Type(O) is not Object, throw a TypeError exception.
+  if (!object->IsJSReceiver()) {
+    Handle<String> fun_name =
+        isolate->factory()
+        ->InternalizeUtf8String("Object.definePropertyWithoutInterceptors");
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject, fun_name));
+  }
+  // 2. Let key be ToPropertyKey(P).
+  // 3. ReturnIfAbrupt(key).
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key, ToPropertyKey(isolate, key));
+  // 4. Let desc be ToPropertyDescriptor(Attributes).
+  // 5. ReturnIfAbrupt(desc).
+  PropertyDescriptor desc;
+  if (!PropertyDescriptor::ToPropertyDescriptor(isolate, attributes, &desc)) {
+    return isolate->heap()->exception();
+  }
+  // 6. Let success be DefinePropertyOrThrow(O,key, desc).
+  Maybe<bool> success = OrdinaryDefineOwnPropertyWithoutIntercept(isolate,
+    Handle<JSObject>::cast(object), key, &desc, THROW_ON_ERROR);
+
+  // 7. ReturnIfAbrupt(success).
+  MAYBE_RETURN(success, isolate->heap()->exception());
+  CHECK(success.FromJust());
+  // 8. Return O.
+  return *object;
+}
 
 // ES6 19.1.2.3.1
 // static
@@ -6253,6 +6284,31 @@ Maybe<bool> JSReceiver::DefineOwnProperty(Isolate* isolate,
 
 
 // static
+Maybe<bool> JSReceiver::DefineOwnPropertyWithoutIntercept(Isolate* isolate,
+                                          Handle<JSReceiver> object,
+                                          Handle<Object> key,
+                                          PropertyDescriptor* desc,
+                                          ShouldThrow should_throw) {
+  if (object->IsJSArray()) {
+    return JSArray::DefineOwnPropertyWithoutIntercept(isolate, Handle<JSArray>::cast(object), key, desc, should_throw);
+  }
+  if (object->IsJSProxy()) {
+    return JSProxy::DefineOwnPropertyWithoutIntercept(isolate, Handle<JSProxy>::cast(object), key, desc, should_throw);
+  }
+  if (object->IsJSTypedArray()) {
+    return JSTypedArray::DefineOwnPropertyWithoutIntercept(
+        isolate, Handle<JSTypedArray>::cast(object), key, desc, should_throw);
+  }
+  // TODO(neis): Special case for JSModuleNamespace?
+
+  // OrdinaryDefineOwnProperty, by virtue of calling
+  // DefineOwnPropertyIgnoreAttributes, can handle arguments
+  // (ES#sec-arguments-exotic-objects-defineownproperty-p-desc).
+  return OrdinaryDefineOwnPropertyWithoutIntercept(isolate, Handle<JSObject>::cast(object), key, desc, should_throw);
+}
+
+
+// static
 Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(Isolate* isolate,
                                                   Handle<JSObject> object,
                                                   Handle<Object> key,
@@ -6283,6 +6339,33 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(Isolate* isolate,
         return result;
       }
     }
+  }
+
+  return OrdinaryDefineOwnProperty(&it, desc, should_throw);
+}
+
+
+// static
+Maybe<bool> JSReceiver::OrdinaryDefineOwnPropertyWithoutIntercept(
+                                                  Isolate* isolate,
+                                                  Handle<JSObject> object,
+                                                  Handle<Object> key,
+                                                  PropertyDescriptor* desc,
+                                                  ShouldThrow should_throw) {
+  bool success = false;
+  DCHECK(key->IsName() || key->IsNumber());  // |key| is a PropertyKey...
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      isolate, object, key, &success, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  DCHECK(success);  // ...so creating a LookupIterator can't fail.
+
+  // Deal with access checks first.
+  if (it.state() == LookupIterator::ACCESS_CHECK) {
+    if (!it.HasAccess()) {
+      isolate->ReportFailedAccessCheck(it.GetHolder<JSObject>());
+      RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
+      return Just(true);
+    }
+    it.Next();
   }
 
   return OrdinaryDefineOwnProperty(&it, desc, should_throw);
@@ -6657,6 +6740,7 @@ bool PropertyKeyToArrayIndex(Handle<Object> index_obj, uint32_t* output) {
 // ES6 9.4.2.1
 // static
 Maybe<bool> JSArray::DefineOwnProperty(Isolate* isolate, Handle<JSArray> o,
+
                                        Handle<Object> name,
                                        PropertyDescriptor* desc,
                                        ShouldThrow should_throw) {
@@ -6718,6 +6802,70 @@ Maybe<bool> JSArray::DefineOwnProperty(Isolate* isolate, Handle<JSArray> o,
   return OrdinaryDefineOwnProperty(isolate, o, name, desc, should_throw);
 }
 
+// not triggering Descriptor interceptor for DefineProperty
+// static
+Maybe<bool> JSArray::DefineOwnPropertyWithoutIntercept(Isolate* isolate,
+                                       Handle<JSArray> o,
+                                       Handle<Object> name,
+                                       PropertyDescriptor* desc,
+                                       ShouldThrow should_throw) {
+  // 1. Assert: IsPropertyKey(P) is true. ("P" is |name|.)
+  // 2. If P is "length", then:
+  // TODO(jkummerow): Check if we need slow string comparison.
+  if (*name == isolate->heap()->length_string()) {
+    // 2a. Return ArraySetLength(A, Desc).
+    return ArraySetLength(isolate, o, desc, should_throw);
+  }
+  // 3. Else if P is an array index, then:
+  uint32_t index = 0;
+  if (PropertyKeyToArrayIndex(name, &index)) {
+    // 3a. Let oldLenDesc be OrdinaryGetOwnProperty(A, "length").
+    PropertyDescriptor old_len_desc;
+    Maybe<bool> success = GetOwnPropertyDescriptor(
+        isolate, o, isolate->factory()->length_string(), &old_len_desc);
+    // 3b. (Assert)
+    DCHECK(success.FromJust());
+    USE(success);
+    // 3c. Let oldLen be oldLenDesc.[[Value]].
+    uint32_t old_len = 0;
+    CHECK(old_len_desc.value()->ToArrayLength(&old_len));
+    // 3d. Let index be ToUint32(P).
+    // (Already done above.)
+    // 3e. (Assert)
+    // 3f. If index >= oldLen and oldLenDesc.[[Writable]] is false,
+    //     return false.
+    if (index >= old_len && old_len_desc.has_writable() &&
+        !old_len_desc.writable()) {
+      RETURN_FAILURE(isolate, should_throw,
+                     NewTypeError(MessageTemplate::kDefineDisallowed, name));
+    }
+    // 3g. Let succeeded be OrdinaryDefineOwnProperty(A, P, Desc).
+    Maybe<bool> succeeded =
+        OrdinaryDefineOwnPropertyWithoutIntercept(isolate, o, name, desc, should_throw);
+    // 3h. Assert: succeeded is not an abrupt completion.
+    //     In our case, if should_throw == THROW_ON_ERROR, it can be!
+    // 3i. If succeeded is false, return false.
+    if (succeeded.IsNothing() || !succeeded.FromJust()) return succeeded;
+    // 3j. If index >= oldLen, then:
+    if (index >= old_len) {
+      // 3j i. Set oldLenDesc.[[Value]] to index + 1.
+      old_len_desc.set_value(isolate->factory()->NewNumberFromUint(index + 1));
+      // 3j ii. Let succeeded be
+      //        OrdinaryDefineOwnProperty(A, "length", oldLenDesc).
+      succeeded = OrdinaryDefineOwnPropertyWithoutIntercept(isolate, o,
+                                            isolate->factory()->length_string(),
+                                            &old_len_desc, should_throw);
+      // 3j iii. Assert: succeeded is true.
+      DCHECK(succeeded.FromJust());
+      USE(succeeded);
+    }
+    // 3k. Return true.
+    return Just(true);
+  }
+
+  // 4. Return OrdinaryDefineOwnProperty(A, P, Desc).
+  return OrdinaryDefineOwnPropertyWithoutIntercept(isolate, o, name, desc, should_throw);
+}
 
 // Part of ES6 9.4.2.4 ArraySetLength.
 // static
@@ -6955,6 +7103,119 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
   return Just(true);
 }
 
+// not triggering Descriptor Callback for DefineProperty
+// static
+Maybe<bool> JSProxy::DefineOwnPropertyWithoutIntercept(Isolate* isolate,
+                                       Handle<JSProxy> proxy,
+                                       Handle<Object> key,
+                                       PropertyDescriptor* desc,
+                                       ShouldThrow should_throw) {
+  STACK_CHECK(isolate, Nothing<bool>());
+  if (key->IsSymbol() && Handle<Symbol>::cast(key)->IsPrivate()) {
+    return SetPrivateProperty(isolate, proxy, Handle<Symbol>::cast(key), desc,
+                              should_throw);
+  }
+  Handle<String> trap_name = isolate->factory()->defineProperty_string();
+  // 1. Assert: IsPropertyKey(P) is true.
+  DCHECK(key->IsName() || key->IsNumber());
+  // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
+  Handle<Object> handler(proxy->handler(), isolate);
+  // 3. If handler is null, throw a TypeError exception.
+  // 4. Assert: Type(handler) is Object.
+  if (proxy->IsRevoked()) {
+    isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kProxyRevoked, trap_name));
+    return Nothing<bool>();
+  }
+  // 5. Let target be the value of the [[ProxyTarget]] internal slot of O.
+  Handle<JSReceiver> target(proxy->target(), isolate);
+  // 6. Let trap be ? GetMethod(handler, "defineProperty").
+  Handle<Object> trap;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, trap,
+      Object::GetMethod(Handle<JSReceiver>::cast(handler), trap_name),
+      Nothing<bool>());
+  // 7. If trap is undefined, then:
+  if (trap->IsUndefined(isolate)) {
+    // 7a. Return target.[[DefineOwnProperty]](P, Desc).
+    return JSReceiver::DefineOwnPropertyWithoutIntercept(isolate, target, key,
+                                         desc, should_throw);
+  }
+  // 8. Let descObj be FromPropertyDescriptor(Desc).
+  Handle<Object> desc_obj = desc->ToObject(isolate);
+  // 9. Let booleanTrapResult be
+  //    ToBoolean(? Call(trap, handler, «target, P, descObj»)).
+  Handle<Name> property_name =
+      key->IsName()
+          ? Handle<Name>::cast(key)
+          : Handle<Name>::cast(isolate->factory()->NumberToString(key));
+  // Do not leak private property names.
+  DCHECK(!property_name->IsPrivate());
+  Handle<Object> trap_result_obj;
+  Handle<Object> args[] = {target, property_name, desc_obj};
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, trap_result_obj,
+      Execution::Call(isolate, trap, handler, arraysize(args), args),
+      Nothing<bool>());
+  // 10. If booleanTrapResult is false, return false.
+  if (!trap_result_obj->BooleanValue()) {
+    RETURN_FAILURE(isolate, should_throw,
+                   NewTypeError(MessageTemplate::kProxyTrapReturnedFalsishFor,
+                                trap_name, property_name));
+  }
+  // 11. Let targetDesc be ? target.[[GetOwnProperty]](P).
+  PropertyDescriptor target_desc;
+  Maybe<bool> target_found =
+      JSReceiver::GetOwnPropertyDescriptor(isolate, target, key, &target_desc);
+  MAYBE_RETURN(target_found, Nothing<bool>());
+  // 12. Let extensibleTarget be ? IsExtensible(target).
+  Maybe<bool> maybe_extensible = JSReceiver::IsExtensible(target);
+  MAYBE_RETURN(maybe_extensible, Nothing<bool>());
+  bool extensible_target = maybe_extensible.FromJust();
+  // 13. If Desc has a [[Configurable]] field and if Desc.[[Configurable]]
+  //     is false, then:
+  // 13a. Let settingConfigFalse be true.
+  // 14. Else let settingConfigFalse be false.
+  bool setting_config_false = desc->has_configurable() && !desc->configurable();
+  // 15. If targetDesc is undefined, then
+  if (!target_found.FromJust()) {
+    // 15a. If extensibleTarget is false, throw a TypeError exception.
+    if (!extensible_target) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kProxyDefinePropertyNonExtensible, property_name));
+      return Nothing<bool>();
+    }
+    // 15b. If settingConfigFalse is true, throw a TypeError exception.
+    if (setting_config_false) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kProxyDefinePropertyNonConfigurable, property_name));
+      return Nothing<bool>();
+    }
+  } else {
+    // 16. Else targetDesc is not undefined,
+    // 16a. If IsCompatiblePropertyDescriptor(extensibleTarget, Desc,
+    //      targetDesc) is false, throw a TypeError exception.
+    Maybe<bool> valid =
+        IsCompatiblePropertyDescriptor(isolate, extensible_target, desc,
+                                       &target_desc, property_name, DONT_THROW);
+    MAYBE_RETURN(valid, Nothing<bool>());
+    if (!valid.FromJust()) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kProxyDefinePropertyIncompatible, property_name));
+      return Nothing<bool>();
+    }
+    // 16b. If settingConfigFalse is true and targetDesc.[[Configurable]] is
+    //      true, throw a TypeError exception.
+    if (setting_config_false && target_desc.configurable()) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kProxyDefinePropertyNonConfigurable, property_name));
+      return Nothing<bool>();
+    }
+  }
+  // 17. Return true.
+  return Just(true);
+}
+
 
 // static
 Maybe<bool> JSProxy::SetPrivateProperty(Isolate* isolate, Handle<JSProxy> proxy,
@@ -7008,7 +7269,7 @@ namespace {
 
 Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
                                                  PropertyDescriptor* desc) {
-  bool has_access = true;
+   bool has_access = true;
   if (it->state() == LookupIterator::ACCESS_CHECK) {
     has_access = it->HasAccess() || JSObject::AllCanRead(it);
     it->Next();
@@ -17072,6 +17333,76 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
   }
   // 4. Return ! OrdinaryDefineOwnProperty(O, P, Desc).
   return OrdinaryDefineOwnProperty(isolate, o, key, desc, should_throw);
+}
+
+// not triggering Descriptor callback for DefineProperty
+// static
+Maybe<bool> JSTypedArray::DefineOwnPropertyWithoutIntercept(Isolate* isolate,
+                                            Handle<JSTypedArray> o,
+                                            Handle<Object> key,
+                                            PropertyDescriptor* desc,
+                                            ShouldThrow should_throw) {
+  // 1. Assert: IsPropertyKey(P) is true.
+  DCHECK(key->IsName() || key->IsNumber());
+  // 2. Assert: O is an Object that has a [[ViewedArrayBuffer]] internal slot.
+  // 3. If Type(P) is String, then
+  if (key->IsString() || key->IsSmi()) {
+    // 3a. Let numericIndex be ! CanonicalNumericIndexString(P)
+    // 3b. If numericIndex is not undefined, then
+    Handle<Object> numeric_index;
+    if (CanonicalNumericIndexString(isolate, key, &numeric_index)) {
+      // 3b i. If IsInteger(numericIndex) is false, return false.
+      // 3b ii. If numericIndex = -0, return false.
+      // 3b iii. If numericIndex < 0, return false.
+      // FIXME: the standard allows up to 2^53 elements.
+      uint32_t index;
+      if (numeric_index->IsMinusZero() || !numeric_index->ToUint32(&index)) {
+        RETURN_FAILURE(isolate, should_throw,
+                       NewTypeError(MessageTemplate::kInvalidTypedArrayIndex));
+      }
+      // 3b iv. Let length be O.[[ArrayLength]].
+      uint32_t length = o->length()->Number();
+      // 3b v. If numericIndex ≥ length, return false.
+      if (index >= length) {
+        RETURN_FAILURE(isolate, should_throw,
+                       NewTypeError(MessageTemplate::kInvalidTypedArrayIndex));
+      }
+      // 3b vi. If IsAccessorDescriptor(Desc) is true, return false.
+      if (PropertyDescriptor::IsAccessorDescriptor(desc)) {
+        RETURN_FAILURE(isolate, should_throw,
+                       NewTypeError(MessageTemplate::kRedefineDisallowed, key));
+      }
+      // 3b vii. If Desc has a [[Configurable]] field and if
+      //         Desc.[[Configurable]] is true, return false.
+      // 3b viii. If Desc has an [[Enumerable]] field and if Desc.[[Enumerable]]
+      //          is false, return false.
+      // 3b ix. If Desc has a [[Writable]] field and if Desc.[[Writable]] is
+      //        false, return false.
+      if ((desc->has_configurable() && desc->configurable()) ||
+          (desc->has_enumerable() && !desc->enumerable()) ||
+          (desc->has_writable() && !desc->writable())) {
+        RETURN_FAILURE(isolate, should_throw,
+                       NewTypeError(MessageTemplate::kRedefineDisallowed, key));
+      }
+      // 3b x. If Desc has a [[Value]] field, then
+      //   3b x 1. Let value be Desc.[[Value]].
+      //   3b x 2. Return ? IntegerIndexedElementSet(O, numericIndex, value).
+      if (desc->has_value()) {
+        if (!desc->has_configurable()) desc->set_configurable(false);
+        if (!desc->has_enumerable()) desc->set_enumerable(true);
+        if (!desc->has_writable()) desc->set_writable(true);
+        Handle<Object> value = desc->value();
+        RETURN_ON_EXCEPTION_VALUE(isolate,
+                                  SetOwnElementIgnoreAttributes(
+                                      o, index, value, desc->ToAttributes()),
+                                  Nothing<bool>());
+      }
+      // 3b xi. Return true.
+      return Just(true);
+    }
+  }
+  // 4. Return ! OrdinaryDefineOwnProperty(O, P, Desc).
+  return OrdinaryDefineOwnPropertyWithoutIntercept(isolate, o, key, desc, should_throw);
 }
 
 ExternalArrayType JSTypedArray::type() {
