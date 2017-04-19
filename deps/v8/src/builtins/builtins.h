@@ -591,7 +591,6 @@ namespace internal {
   CPP(ObjectDefineGetter)                                                      \
   CPP(ObjectDefineProperties)                                                  \
   CPP(ObjectDefineProperty)                                                    \
-  CPP(ObjectDefinePropertyWithoutInterceptors)                                 \
   CPP(ObjectDefineSetter)                                                      \
   CPP(ObjectEntries)                                                           \
   CPP(ObjectFreeze)                                                            \

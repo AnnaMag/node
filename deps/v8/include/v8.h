@@ -2927,7 +2927,7 @@ class V8_EXPORT Object : public Value {
   // Returns true on success.
   V8_WARN_UNUSED_RESULT Maybe<bool> DefineOwnProperty(
       Local<Context> context, Local<Name> key, Local<Value> value,
-      PropertyAttribute attributes = None);
+      PropertyAttribute attributes = None, bool bypass_interceptor = false);
 
   // Implements Object.DefineProperty(O, P, Attributes), see Ecma-262 19.1.2.4.
   //
@@ -2943,10 +2943,8 @@ class V8_EXPORT Object : public Value {
   //
   // Returns true on success.
   V8_WARN_UNUSED_RESULT Maybe<bool> DefineProperty(
-      Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor);
-
-  V8_WARN_UNUSED_RESULT Maybe<bool> DefinePropertyWithoutInterceptors(
-      Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor);
+      Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor,
+      bool bypass_interceptor = false);
 
   // Sets an own property on this object bypassing interceptors and
   // overriding accessors or read-only properties.

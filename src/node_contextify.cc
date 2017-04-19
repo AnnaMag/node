@@ -302,7 +302,6 @@ class ContextifyContext {
     Local<Context> context = ctx->context();
     Local<Object> sandbox = ctx->sandbox();
     MaybeLocal<Value> maybe_rv =
-        // ctx->global_proxy()->GetRealNamedProperty(context, property);
         sandbox->GetRealNamedProperty(context, property);
     if (maybe_rv.IsEmpty()) {
       maybe_rv =
@@ -421,10 +420,9 @@ static void GlobalPropertyDefinerCallback(
           if (desc.has_configurable()) {
               desc_for_sandbox->set_configurable(desc.configurable());
           }
-        sandbox->DefinePropertyWithoutInterceptors(context, property,
-              *desc_for_sandbox);
-        ctx->global_proxy()->DefinePropertyWithoutInterceptors(context,
-              property, *desc_for_sandbox);   // set on the global
+        sandbox->DefineProperty(context, property, *desc_for_sandbox);
+        ctx->global_proxy()->DefineProperty(context, property,
+            *desc_for_sandbox, true);   // set on the global
         info.GetReturnValue().Set(property);  // intercept so as not to trigger
                                               // the Descriptor callback
       };

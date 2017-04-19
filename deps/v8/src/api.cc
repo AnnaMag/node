@@ -4234,7 +4234,8 @@ bool v8::PropertyDescriptor::has_configurable() const {
 Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
                                           v8::Local<Name> key,
                                           v8::Local<Value> value,
-                                          v8::PropertyAttribute attributes) {
+                                          v8::PropertyAttribute attributes,
+                                          bool bypass_interceptor) {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, Object, DefineOwnProperty, bool);
   i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
@@ -4246,7 +4247,8 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
   desc.set_configurable(!(attributes & v8::DontDelete));
   desc.set_value(value_obj);
   Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
-      isolate, self, key_obj, &desc, i::Object::DONT_THROW);
+      isolate, self, key_obj, &desc, i::Object::DONT_THROW,
+      bypass_interceptor);
   // Even though we said DONT_THROW, there might be accessors that do throw.
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return success;
@@ -4254,42 +4256,19 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
 
 Maybe<bool> v8::Object::DefineProperty(v8::Local<v8::Context> context,
                                        v8::Local<Name> key,
-                                       PropertyDescriptor& descriptor) {
+                                       PropertyDescriptor& descriptor,
+                                       bool bypass_interceptor) {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, Object, DefineProperty, bool);
   i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
 
   Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
       isolate, self, key_obj, &descriptor.get_private()->desc,
-      i::Object::DONT_THROW);
+      i::Object::DONT_THROW, bypass_interceptor);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return success;
 }
-//*********
-Maybe<bool> v8::Object::DefinePropertyWithoutInterceptors(
-                                       v8::Local<v8::Context> context,
-                                       v8::Local<Name> key,
-                                       PropertyDescriptor& descriptor) {
-  PREPARE_FOR_EXECUTION_PRIMITIVE(context, Object,
-      DefinePropertyWithoutInterceptors, bool);
-  i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
-  i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
 
-  // Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
-  //     isolate, self, key_obj, &descriptor.get_private()->desc,
-  //     i::Object::DONT_THROW);
-
-  // Maybe<bool> success =
-  //   i::JSReceiver::OrdinaryDefineOwnPropertyWithoutIntercept(
-  //   isolate, i::Handle<i::JSObject>::cast(self), key_obj, &descriptor.get_private()->desc, i::Object::THROW_ON_ERROR);
-  Maybe<bool> success =
-       i::JSReceiver::DefineOwnPropertyWithoutIntercept(
-       isolate, self, key_obj, &descriptor.get_private()->desc, i::Object::DONT_THROW);
-
-  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  return success;
-}
-//********
 MUST_USE_RESULT
 static i::MaybeHandle<i::Object> DefineObjectProperty(
     i::Handle<i::JSObject> js_object, i::Handle<i::Object> key,

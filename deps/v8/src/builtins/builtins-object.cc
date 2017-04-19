@@ -398,16 +398,6 @@ BUILTIN(ObjectDefineProperty) {
   return JSReceiver::DefineProperty(isolate, target, key, attributes);
 }
 
-BUILTIN(ObjectDefinePropertyWithoutInterceptors) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  Handle<Object> target = args.at(1);
-  Handle<Object> key = args.at(2);
-  Handle<Object> attributes = args.at(3);
-
-  return JSReceiver::DefinePropertyWithoutInterceptors(isolate, target, key, attributes);
-}
-
 namespace {
 
 template <AccessorComponent which_accessor>

@@ -2038,13 +2038,9 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT static Object* DefineProperty(Isolate* isolate,
                                                 Handle<Object> object,
                                                 Handle<Object> name,
-                                                Handle<Object> attributes);
-
-  MUST_USE_RESULT static Object* DefinePropertyWithoutInterceptors(
-                                                Isolate* isolate,
-                                                Handle<Object> object,
-                                                Handle<Object> name,
-                                                Handle<Object> attributes);
+                                                Handle<Object> attributes,
+                                                bool bypass_interceptor = false
+                                                );
 
   MUST_USE_RESULT static MaybeHandle<Object> DefineProperties(
       Isolate* isolate, Handle<Object> object, Handle<Object> properties);
@@ -2052,13 +2048,8 @@ class JSReceiver: public HeapObject {
   // "virtual" dispatcher to the correct [[DefineOwnProperty]] implementation.
   MUST_USE_RESULT static Maybe<bool> DefineOwnProperty(
       Isolate* isolate, Handle<JSReceiver> object, Handle<Object> key,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
-
-  // "virtual" dispatcher to the correct [[DefineOwnPropertyWithoutIntercept]]
-  // implementation.
-  MUST_USE_RESULT static Maybe<bool> DefineOwnPropertyWithoutIntercept(
-      Isolate* isolate, Handle<JSReceiver> object, Handle<Object> key,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
+      PropertyDescriptor* desc, ShouldThrow should_throw,
+      bool bypass_interceptor = false);
 
   // ES6 7.3.4 (when passed DONT_THROW)
   MUST_USE_RESULT static Maybe<bool> CreateDataProperty(
@@ -2067,13 +2058,11 @@ class JSReceiver: public HeapObject {
   // ES6 9.1.6.1
   MUST_USE_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
       Isolate* isolate, Handle<JSObject> object, Handle<Object> key,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
+      PropertyDescriptor* desc, ShouldThrow should_throw,
+      bool bypass_interceptor = false);
   MUST_USE_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
       LookupIterator* it, PropertyDescriptor* desc, ShouldThrow should_throw);
 
-  MUST_USE_RESULT static Maybe<bool> OrdinaryDefineOwnPropertyWithoutIntercept(
-      Isolate* isolate, Handle<JSObject> object, Handle<Object> key,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
   // ES6 9.1.6.2
   MUST_USE_RESULT static Maybe<bool> IsCompatiblePropertyDescriptor(
       Isolate* isolate, bool extensible, PropertyDescriptor* desc,
@@ -10463,11 +10452,8 @@ class JSProxy: public JSReceiver {
   // ES6 9.5.6
   MUST_USE_RESULT static Maybe<bool> DefineOwnProperty(
       Isolate* isolate, Handle<JSProxy> object, Handle<Object> key,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
-
-  MUST_USE_RESULT static Maybe<bool> DefineOwnPropertyWithoutIntercept(
-      Isolate* isolate, Handle<JSProxy> object, Handle<Object> key,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
+      PropertyDescriptor* desc, ShouldThrow should_throw,
+      bool bypass_interceptor = false);
 
   // ES6 9.5.7
   MUST_USE_RESULT static Maybe<bool> HasProperty(Isolate* isolate,
@@ -10915,11 +10901,8 @@ class JSTypedArray: public JSArrayBufferView {
   // ES6 9.4.5.3
   MUST_USE_RESULT static Maybe<bool> DefineOwnProperty(
       Isolate* isolate, Handle<JSTypedArray> o, Handle<Object> key,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
-
-  MUST_USE_RESULT static Maybe<bool> DefineOwnPropertyWithoutIntercept(
-      Isolate* isolate, Handle<JSTypedArray> o, Handle<Object> key,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
+      PropertyDescriptor* desc, ShouldThrow should_throw,
+      bool bypass_interceptor = false);
 
   DECLARE_CAST(JSTypedArray)
 
@@ -11033,11 +11016,8 @@ class JSArray: public JSObject {
   // ES6 9.4.2.1
   MUST_USE_RESULT static Maybe<bool> DefineOwnProperty(
       Isolate* isolate, Handle<JSArray> o, Handle<Object> name,
-      PropertyDescriptor* desc, ShouldThrow should_throw);
-
-  MUST_USE_RESULT static Maybe<bool> DefineOwnPropertyWithoutIntercept(
-          Isolate* isolate, Handle<JSArray> o, Handle<Object> name,
-          PropertyDescriptor* desc, ShouldThrow should_throw);
+      PropertyDescriptor* desc, ShouldThrow should_throw,
+      bool bypass_interceptor = false);
 
   static bool AnythingToArrayLength(Isolate* isolate,
                                     Handle<Object> length_object,
@@ -11045,7 +11025,8 @@ class JSArray: public JSObject {
   MUST_USE_RESULT static Maybe<bool> ArraySetLength(Isolate* isolate,
                                                     Handle<JSArray> a,
                                                     PropertyDescriptor* desc,
-                                                    ShouldThrow should_throw);
+                                                    ShouldThrow should_throw,
+                                                    bool bypass_interceptor);
 
   // Checks whether the Array has the current realm's Array.prototype as its
   // prototype. This function is best-effort and only gives a conservative
